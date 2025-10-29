@@ -1,95 +1,76 @@
-// src/context/DataContext.tsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import * as Device from 'expo-device';
-import * as Battery from 'expo-battery';
-import { Platform } from 'react-native';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Demographics = {
-  ageRange: string;          // "18-24", "25-34", etc.
-  industry: string;
-  region: string;            // ZIP or state
-  householdSize: string;     // "1", "2", "3-4", "5+"
-  devicesOwned: string[];    // ["iPhone","PS5","EV"]
+type DeviceInfo = {
+  manufacturer?: string | null;
+  modelName?: string | null;
+  osName?: string | null;
+  osVersion?: string | null;
+  batteryLevel?: number | null;
+  isCharging?: boolean | null;
+  networkType?: string | null;
 };
 
-export type DeviceSnapshot = {
-  platform: string;
-  modelName: string | null;
-  osVersion: string | null;
-  batteryLevel: number | null;        // 0-1
-  lowPowerMode: boolean | null;
-  timestamp: number;
-};
-
-type DataContextType = {
-  demographics: Demographics;
-  setDemographics: (d: Demographics) => void;
-
-  snapshot: DeviceSnapshot | null;
-  refreshSnapshot: () => Promise<void>;
-
-  contributing: boolean;
-  setContributing: (v: boolean) => void;
-};
-
-const DataContext = createContext<DataContextType | null>(null);
+const DataContext = createContext<DeviceInfo | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [demographics, setDemographics] = useState<Demographics>({
-    ageRange: '',
-    industry: '',
-    region: '',
-    householdSize: '',
-    devicesOwned: [],
+  const [data, setData] = useState<DeviceInfo>({
+    manufacturer: null,
+    modelName: null,
+    osName: null,
+    osVersion: null,
+    batteryLevel: null,
+    isCharging: null,
+    networkType: null,
   });
 
-  const [snapshot, setSnapshot] = useState<DeviceSnapshot | null>(null);
-  const [contributing, setContributing] = useState<boolean>(true);
-
-  // grab initial snapshot once on mount
   useEffect(() => {
-    refreshSnapshot();
+    let isMounted = true;
+
+    async function collect() {
+      try {
+        // dynamic import = don't break web / bundler analysis
+        const Device = await import('expo-device');
+        const Battery = await import('expo-battery');
+        const Network = await import('expo-network');
+
+        const [
+          powerState,
+          netState,
+        ] = await Promise.all([
+          Battery.getPowerStateAsync(),
+          Network.getNetworkStateAsync(),
+        ]);
+
+        if (!isMounted) return;
+
+        setData({
+          manufacturer: Device.manufacturer ?? null,
+          modelName: Device.modelName ?? null,
+          osName: Device.osName ?? null,
+          osVersion: Device.osVersion ?? null,
+          batteryLevel: powerState?.batteryLevel ?? null,
+          isCharging: powerState?.isCharging ?? null,
+          networkType: netState?.type ?? null,
+        });
+      } catch (err) {
+        console.warn('Failed to collect device info:', err);
+      }
+    }
+
+    collect();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  async function refreshSnapshot() {
-    try {
-      const batteryState = await Battery.getBatteryStateAsync();
-      const batteryLevel = await Battery.getBatteryLevelAsync();
-      const lowPowerMode = await Battery.isLowPowerModeEnabledAsync();
-
-      const snap: DeviceSnapshot = {
-        platform: Platform.OS,
-        modelName: Device.modelName ?? null,
-        osVersion: Device.osVersion ?? null,
-        batteryLevel: batteryLevel ?? null,
-        lowPowerMode: lowPowerMode ?? null,
-        timestamp: Date.now(),
-      };
-
-      setSnapshot(snap);
-    } catch (err) {
-      console.warn('Failed to collect device snapshot', err);
-    }
-  }
-
   return (
-    <DataContext.Provider
-      value={{
-        demographics,
-        setDemographics,
-        snapshot,
-        refreshSnapshot,
-        contributing,
-        setContributing,
-      }}
-    >
+    <DataContext.Provider value={data}>
       {children}
     </DataContext.Provider>
   );
 }
 
-export function useDataContext() {
-  const ctx = useContext(DataContext);
-  if (!ctx) throw new Error('useDataContext must be used inside DataProvider');
-  return ctx;
+export function useDeviceData() {
+  return useContext(DataContext);
 }
