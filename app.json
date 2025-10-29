@@ -27,11 +27,6 @@
     "web": {
       "bundler": "metro",
       "output": "static"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "local-dev"
-      }
     }
   }
 }
