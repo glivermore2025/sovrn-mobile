@@ -15,6 +15,10 @@
       "image": "./assets/splash.png",
       "resizeMode": "contain"
     },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false
     },
