@@ -2,6 +2,15 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useDataContext } from '../src/context/DataContext';
 
+export default function HomeScreen() {
+  return (
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+      <Text style={{ color: "white", fontSize: 20 }}>Sovrn Mobile</Text>
+      <Text style={{ color: "gray", marginTop: 8 }}>Expo Router is working ✅</Text>
+    </View>
+  );
+}
+
 export default function DashboardScreen() {
   const { contributing, snapshot, refreshSnapshot } = useDataContext();
 
