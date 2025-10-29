@@ -1,27 +1,27 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type DeviceInfo = {
-  manufacturer?: string | null;
-  modelName?: string | null;
-  osName?: string | null;
-  osVersion?: string | null;
-  batteryLevel?: number | null;
-  isCharging?: boolean | null;
-  networkType?: string | null;
+  manufacturer: string | null;
+  modelName: string | null;
+  osName: string | null;
+  osVersion: string | null;
+  batteryLevel: number | null;
+  isCharging: boolean | null;
+  networkType: string | null;
 };
 
 const DataContext = createContext<DeviceInfo | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<DeviceInfo>({
-    manufacturer: null,
-    modelName: null,
-    osName: null,
-    osVersion: null,
-    batteryLevel: null,
-    isCharging: null,
-    networkType: null,
-  });
+  manufacturer: null,
+  modelName: null,
+  osName: null,
+  osVersion: null,
+  batteryLevel: null,
+  isCharging: null,
+  networkType: null,
+});
 
   useEffect(() => {
     let isMounted = true;
@@ -43,14 +43,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         if (!isMounted) return;
 
+        const batteryLevel =
+          (powerState as any)?.batteryLevel ?? null;
+        const isChargingVal =
+          (powerState as any)?.isCharging ?? null;
+
         setData({
-          manufacturer: Device.manufacturer ?? null,
-          modelName: Device.modelName ?? null,
-          osName: Device.osName ?? null,
-          osVersion: Device.osVersion ?? null,
-          batteryLevel: powerState?.batteryLevel ?? null,
-          isCharging: powerState?.isCharging ?? null,
-          networkType: netState?.type ?? null,
+          manufacturer: (Device as any).manufacturer ?? null,
+          modelName: (Device as any).modelName ?? null,
+          osName: (Device as any).osName ?? null,
+          osVersion: (Device as any).osVersion ?? null,
+          batteryLevel,
+          isCharging: isChargingVal,
+          networkType: (netState as any)?.type ?? null,
         });
       } catch (err) {
         console.warn('Failed to collect device info:', err);
