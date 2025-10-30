@@ -1,5 +1,5 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "./node_modules/expo/tsconfig.base",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
@@ -12,16 +12,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
-    "types": [
-      "expo",
-      "react",
-      "react-native"
-    ]
+    "lib": ["DOM", "DOM.Iterable", "ESNext"]
   },
   "include": [
     "app",
