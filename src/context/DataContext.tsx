@@ -1,81 +1,97 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
+import * as Device from 'expo-device';
+import * as Battery from 'expo-battery';
+import * as Network from 'expo-network';
 
 type DeviceInfo = {
   manufacturer: string | null;
   modelName: string | null;
   osName: string | null;
   osVersion: string | null;
-  batteryLevel: number | null;
+  batteryLevel: number | null;   // 0–1 (e.g. 0.72)
   isCharging: boolean | null;
-  networkType: string | null;
+  networkType: string | null;    // "WIFI" / "CELLULAR" / etc.
 };
 
 const DataContext = createContext<DeviceInfo | null>(null);
 
-export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<DeviceInfo>({
-  manufacturer: null,
-  modelName: null,
-  osName: null,
-  osVersion: null,
-  batteryLevel: null,
-  isCharging: null,
-  networkType: null,
-});
+export function DataProvider({ children }: { children: ReactNode }) {
+  const [info, setInfo] = useState<DeviceInfo>({
+    manufacturer: null,
+    modelName: null,
+    osName: null,
+    osVersion: null,
+    batteryLevel: null,
+    isCharging: null,
+    networkType: null,
+  });
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function collect() {
+    const load = async () => {
       try {
-        // dynamic import = don't break web / bundler analysis
-        const Device = await import('expo-device');
-        const Battery = await import('expo-battery');
-        const Network = await import('expo-network');
+        // Device info
+       // Use sync fields available in expo-device for SDK 53
+        const manufacturer =
+          // some platforms expose 'manufacturer', others only 'brand'
+          (Device as any).manufacturer ?? (Device as any).brand ?? null;
+        const modelName = Device.modelName ?? null;
+        const osName = Device.osName ?? null;
+        const osVersion = Device.osVersion ?? null;
 
-        const [
-          powerState,
-          netState,
-        ] = await Promise.all([
-          Battery.getPowerStateAsync(),
-          Network.getNetworkStateAsync(),
-        ]);
+        // Battery info
+        const batteryLevel = await Battery.getBatteryLevelAsync(); // 0..1
+        const powerState = await Battery.getPowerStateAsync();
+        const batteryState = (powerState as any)?.batteryState;
 
-        if (!isMounted) return;
+        // Treat CHARGING and FULL as “plugged in”
+        const isCharging =
+          batteryState === Battery.BatteryState.CHARGING ||
+          batteryState === Battery.BatteryState.FULL
+            ? true
+            : batteryState === Battery.BatteryState.UNPLUGGED
+            ? false
+            : null;
 
-        const batteryLevel =
-          (powerState as any)?.batteryLevel ?? null;
-        const isChargingVal =
-          (powerState as any)?.isCharging ?? null;
+        // Network info
+        const net = await Network.getNetworkStateAsync();
+        const networkType = net?.type ?? null; // "WIFI" | "CELLULAR" | etc.
 
-        setData({
-          manufacturer: (Device as any).manufacturer ?? null,
-          modelName: (Device as any).modelName ?? null,
-          osName: (Device as any).osName ?? null,
-          osVersion: (Device as any).osVersion ?? null,
-          batteryLevel,
-          isCharging: isChargingVal,
-          networkType: (netState as any)?.type ?? null,
+        setInfo({
+          manufacturer,
+          modelName,
+          osName,
+          osVersion,
+          batteryLevel: batteryLevel ?? null,
+          isCharging,
+          networkType: networkType ?? null,
         });
       } catch (err) {
-        console.warn('Failed to collect device info:', err);
+        console.warn('Failed to gather device info:', err);
       }
-    }
-
-    collect();
-
-    return () => {
-      isMounted = false;
     };
+
+    load();
   }, []);
 
   return (
-    <DataContext.Provider value={data}>
+    <DataContext.Provider value={info}>
       {children}
     </DataContext.Provider>
   );
 }
 
-export function useDeviceData() {
-  return useContext(DataContext);
+// ✅ this is what App.tsx is trying to import
+export function useData() {
+  const ctx = useContext(DataContext);
+  if (!ctx) {
+    // This helps catch cases where we forgot <DataProvider>
+    throw new Error('useData must be used inside a <DataProvider>');
+  }
+  return ctx;
 }
