@@ -1,6 +1,6 @@
 // app.config.ts
 import 'dotenv/config';
-import type { ExpoConfig } from '@expo/config';
+import { ExpoConfig } from '@expo/config-types';
 
 const config: ExpoConfig = {
   name: 'sovrn-mobile',

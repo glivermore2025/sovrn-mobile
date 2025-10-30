@@ -12,7 +12,13 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext"]
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": [
+      "expo",
+      "react",
+      "react-native",
+      "node"
+    ]
   },
   "include": [
     "app",
