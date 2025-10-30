@@ -1,5 +1,7 @@
 // app.config.ts
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
+// Prefer .env.local, fall back to .env
+dotenv.config({ path: '.env.local' }) || dotenv.config();
 import { ExpoConfig } from '@expo/config-types';
 
 const config: ExpoConfig = {
