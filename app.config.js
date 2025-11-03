@@ -32,7 +32,7 @@ module.exports = {
   extra: {
     // these must be strings; empty string is fine if missing
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_KEY || '',
     router: { origin: 'expo' },
   },
 
