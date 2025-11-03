@@ -1,17 +1,21 @@
-// app.config.ts
-import * as dotenv from 'dotenv';
-// Prefer .env.local, fall back to .env
-dotenv.config({ path: '.env.local' }) || dotenv.config();
-import { ExpoConfig } from '@expo/config-types';
+// app.config.js
+const { config } = require('dotenv');
 
-const config: ExpoConfig = {
+// Load .env.local first; fall back to .env if needed
+config({ path: '.env.local' });
+config();
+
+module.exports = {
   name: 'sovrn-mobile',
   slug: 'sovrn-mobile',
   scheme: 'sovrnmobile',
   version: '1.0.0',
   orientation: 'portrait',
-  userInterfaceStyle: 'dark',
+  sdkVersion: '53.0.0',
+  platforms: ['ios', 'android', 'web'],
   backgroundColor: '#000000',
+  primaryColor: '#000000',
+  userInterfaceStyle: 'dark',
 
   splash: {
     backgroundColor: '#000000',
@@ -19,26 +23,23 @@ const config: ExpoConfig = {
     resizeMode: 'contain',
   },
 
+  updates: {
+    fallbackToCacheTimeout: 0,
+  },
+
   assetBundlePatterns: ['**/*'],
 
   extra: {
-    // Make sure these exist in .env.local (no quotes, include https://)
-    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+    // these must be strings; empty string is fine if missing
+    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
+    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
     router: { origin: 'expo' },
-    eas: {
-      // optional: add if you plan to use EAS later
-      // projectId: 'YOUR-EAS-PROJECT-ID',
-    },
   },
 
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.sovrn.mobile',
-    associatedDomains: [
-      'applinks:getsovrn.com',
-      'applinks:www.getsovrn.com',
-    ],
+    associatedDomains: ['applinks:getsovrn.com', 'applinks:www.getsovrn.com'],
   },
 
   android: {
@@ -50,18 +51,18 @@ const config: ExpoConfig = {
     intentFilters: [
       {
         action: 'VIEW',
-        category: ['BROWSABLE', 'DEFAULT'],
         data: [
           { scheme: 'sovrnmobile' },
           { scheme: 'https', host: 'getsovrn.com' },
           { scheme: 'https', host: 'www.getsovrn.com' },
         ],
+        category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
   },
 
-  // no "web" block for now
-  plugins: [], // keep empty; add plugins later when needed
+  web: {
+    bundler: 'metro',
+    output: 'static',
+  },
 };
-
-export default config;
