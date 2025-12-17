@@ -31,9 +31,12 @@ module.exports = {
 
   extra: {
     // these must be strings; empty string is fine if missing
+    // NOTE: `router` was removed because the Expo CLI's CORS middleware
+    // calls `new URL(extra.router.origin)`. If `router.origin` is set to a
+    // non-URL string (for example, 'expo'), it throws `TypeError: Invalid URL`
+    // during `expo start`. Reintroduce `router` only with a full URL value.
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_KEY || '',
-    router: { origin: 'expo' },
   },
 
   ios: {
