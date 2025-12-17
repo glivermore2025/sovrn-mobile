@@ -1,7 +1,11 @@
 // app/index.tsx
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet } from 'react-native';
+import { ScrollView, Text, View, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+
 import { useData } from '../src/context/DataContext';
+import { useAuth } from '../src/context/AuthContext';
+import { supabase } from '../src/lib/supabase';
 
 function Row({ label, value }: { label: string; value: string | number | null }) {
   return (
@@ -13,10 +17,39 @@ function Row({ label, value }: { label: string; value: string | number | null })
 }
 
 export default function IndexScreen() {
+  const router = useRouter();
   const data = useData();
+  const { session, initializing } = useAuth();
+
+  // Still restoring auth session
+  if (initializing) return null;
+
+  // Not logged in → force login
+  if (!session) {
+    router.replace('/login');
+    return null;
+  }
+
+  const email = session.user.email ?? '';
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Auth header */}
+      <View style={styles.authHeader}>
+        <Text style={styles.authText}>Signed in as</Text>
+        <Text style={styles.authEmail}>{email}</Text>
+
+        <Pressable
+          onPress={async () => {
+            await supabase.auth.signOut();
+            router.replace('/login');
+          }}
+        >
+          <Text style={styles.signOut}>Sign out</Text>
+        </Pressable>
+      </View>
+
+      {/* Existing content */}
       <Text style={styles.header}>Your Device Snapshot</Text>
       <Text style={styles.subtext}>
         This is the kind of info Sovrn will eventually package (with your consent)
@@ -63,6 +96,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     padding: 24,
   },
+
+  /* Auth header */
+  authHeader: {
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  authText: {
+    color: '#9ca3af',
+    fontSize: 12,
+  },
+  authEmail: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  signOut: {
+    marginTop: 6,
+    color: '#ef4444',
+    fontSize: 12,
+  },
+
   header: {
     color: 'white',
     fontSize: 20,

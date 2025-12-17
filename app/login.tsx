@@ -1,0 +1,71 @@
+import { useState } from 'react';
+import { View, Text, TextInput, Pressable, Alert } from 'react-native';
+import * as Linking from 'expo-linking';
+import { supabase } from '../src/lib/supabase';
+import { useRouter } from 'expo-router';
+
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const sendLink = async () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed.includes('@')) return Alert.alert('Enter a valid email');
+
+    setLoading(true);
+    const redirectTo = Linking.createURL('auth'); // -> sovrn://auth
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: { emailRedirectTo: redirectTo },
+    });
+
+    setLoading(false);
+
+    if (error) return Alert.alert('Login failed', error.message);
+
+    router.push('/check-email');
+  };
+
+  return (
+    <View style={{ flex: 1, padding: 16, gap: 12 }}>
+      <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>Sign in</Text>
+
+      <TextInput
+        value={email}
+        onChangeText={setEmail}
+        placeholder="you@example.com"
+        placeholderTextColor="#888"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        style={{
+          color: '#fff',
+          borderColor: '#333',
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 12,
+        }}
+      />
+
+      <Pressable
+        onPress={sendLink}
+        disabled={loading}
+        style={{
+          backgroundColor: loading ? '#333' : '#fff',
+          padding: 12,
+          borderRadius: 12,
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: '#000', fontWeight: '700' }}>
+          {loading ? 'Sending…' : 'Send magic link'}
+        </Text>
+      </Pressable>
+
+      <Text style={{ color: '#aaa' }}>
+        We’ll email you a sign-in link. Tapping it will bring you back into the app.
+      </Text>
+    </View>
+  );
+}

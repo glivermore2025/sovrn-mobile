@@ -29,6 +29,9 @@ module.exports = {
 
   assetBundlePatterns: ['**/*'],
 
+  // Added on install: register native plugin for secure storage
+  plugins: ['expo-secure-store'],
+
   extra: {
     // these must be strings; empty string is fine if missing
     // NOTE: `router` was removed because the Expo CLI's CORS middleware
