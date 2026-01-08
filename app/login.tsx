@@ -14,7 +14,13 @@ export default function Login() {
     if (!trimmed.includes('@')) return Alert.alert('Enter a valid email');
 
     setLoading(true);
-    const redirectTo = Linking.createURL('auth'); // -> sovrn://auth
+    // Use a stable HTTPS redirector in production which forwards the Supabase
+    // token fragment to the app via the custom scheme. For local development
+    // we fall back to the Expo deep link; ensure any URLs you use are added
+    // to Supabase's Redirect URLs.
+    const appSchemeRedirect = 'sovrnmobile://auth';
+    const webRedirector = 'https://getsovrn.com/supabase-redirect'; // <-- deploy this page to your site
+    const redirectTo = __DEV__ ? Linking.createURL('auth') : webRedirector;
 
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
