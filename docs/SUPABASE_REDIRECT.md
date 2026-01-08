@@ -12,6 +12,7 @@ This document explains how to configure Supabase and the app so magic links reli
 1. Deploy `web/supabase-redirect/index.html` (or `web/supabase-redirect.html`) to your site at `/supabase-redirect` (example: `https://getsovrn.com/supabase-redirect`). If your host requires `index.html` in a directory (common for many static hosts), the `index.html` file will prevent 404s.
 2. In Supabase dashboard → Authentication → Settings → **Redirect URLs**, add:
    - `https://getsovrn.com/supabase-redirect`
+   - `https://getsovrn.com` (add the root URL as a fallback — some verify links may point to the site root)
    - `sovrnmobile://auth` (optional, but harmless)
    - **For local testing with Expo Go:** add the exact Expo dev URL you see when running `npx expo start` (for example `exp://zosd1za-...`). Supabase will only redirect to URLs that are registered here.
 3. In the app, we now send the HTTPS redirector as the `emailRedirectTo` so Supabase will redirect to it after verification; the redirector will forward the token fragment to the app scheme.
