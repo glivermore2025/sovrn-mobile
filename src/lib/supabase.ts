@@ -1,9 +1,21 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const env = process.env;
+const supabaseUrl =
+  env.EXPO_PUBLIC_SUPABASE_URL ?? Constants.expoConfig?.extra?.supabaseUrl ?? '';
+const supabaseAnonKey =
+  env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  env.EXPO_PUBLIC_SUPABASE_KEY ??
+  Constants.expoConfig?.extra?.supabaseAnonKey ?? '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase config: set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY (or EXPO_PUBLIC_SUPABASE_ANON_KEY), e.g. in .env.local or app.config.js extras.'
+  );
+}
 
 const ExpoSecureStoreAdapter = {
   getItem: async (key: string) => {
