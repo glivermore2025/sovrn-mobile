@@ -21,14 +21,14 @@ export default function IndexScreen() {
   const data = useData();
   const { session, initializing } = useAuth();
 
-  // Still restoring auth session
-  if (initializing) return null;
+  // Redirect to login once auth has finished restoring and there's no session
+  React.useEffect(() => {
+    if (!initializing && !session) {
+      router.replace('/login');
+    }
+  }, [initializing, session, router]);
 
-  // Not logged in → force login
-  if (!session) {
-    router.replace('/login');
-    return null;
-  }
+  if (initializing || !session) return null;
 
   const email = session.user.email ?? '';
 

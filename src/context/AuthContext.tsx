@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import * as Linking from 'expo-linking';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -23,6 +24,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setInitializing(false);
     })();
 
+    // Debug: log incoming deep links so we can verify the magic-link redirect
+    // (no production behavior here, just helpful logs while testing)
+    let linkSub: any = null;
+
+    (async () => {
+      try {
+        const initial = await Linking.getInitialURL();
+        if (initial) console.info('Initial URL:', initial);
+      } catch (err) {
+        console.warn('Linking.getInitialURL failed', err);
+      }
+
+      linkSub = Linking.addEventListener('url', ({ url }) => {
+        console.info('Opened by URL:', url);
+      });
+    })();
+
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
@@ -30,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
+      linkSub?.remove?.();
     };
   }, []);
 
