@@ -21,10 +21,9 @@ export default function Login() {
     const appSchemeRedirect = 'sovrnmobile://auth';
     const webRedirector = 'https://getsovrn.com/supabase-redirect'; // <-- deploy this page to your site
 
-    // For testing, always request the web redirector so the email's redirect_to is
-    // clearly visible and we can validate it. If you prefer, switch back to the
-    // __DEV__ fallback after verifying Supabase settings.
-    const redirectTo = webRedirector;
+    // Use the app custom scheme by default to test direct deep-linking into the app.
+    // If this fails in some email clients, switch back to the web redirector.
+    const redirectTo = appSchemeRedirect;
     console.info('Sending magic link with redirect:', redirectTo);
 
     const { error } = await supabase.auth.signInWithOtp({
