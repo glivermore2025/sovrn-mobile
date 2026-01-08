@@ -9,7 +9,7 @@ This document explains how to configure Supabase and the app so magic links reli
 
 ## Steps
 
-1. Deploy `web/supabase-redirect.html` to your site at `/supabase-redirect` (example: `https://getsovrn.com/supabase-redirect`).
+1. Deploy `web/supabase-redirect/index.html` (or `web/supabase-redirect.html`) to your site at `/supabase-redirect` (example: `https://getsovrn.com/supabase-redirect`). If your host requires `index.html` in a directory (common for many static hosts), the `index.html` file will prevent 404s.
 2. In Supabase dashboard → Authentication → Settings → **Redirect URLs**, add:
    - `https://getsovrn.com/supabase-redirect`
    - `sovrnmobile://auth` (optional, but harmless)
