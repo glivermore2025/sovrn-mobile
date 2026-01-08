@@ -21,10 +21,14 @@ export default function Login() {
     const appSchemeRedirect = 'sovrnmobile://auth';
     const webRedirector = 'https://getsovrn.com/supabase-redirect'; // <-- deploy this page to your site
 
-    // Use the app custom scheme by default to test direct deep-linking into the app.
-    // If this fails in some email clients, switch back to the web redirector.
-    const redirectTo = appSchemeRedirect;
+    // Use the Expo dev deep link during development (so clicking the email opens
+    // Expo Go), and use the web redirector in production as a robust fallback.
+    const devRedirect = Linking.createURL('auth');
+    const redirectTo = __DEV__ ? devRedirect : webRedirector;
     console.info('Sending magic link with redirect:', redirectTo);
+
+    // NOTE: If you test locally, add the dev redirect URL shown in logs to
+    // Supabase's Redirect URLs so the verify endpoint will accept it.
 
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
