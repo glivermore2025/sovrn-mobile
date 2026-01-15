@@ -47,7 +47,12 @@ export default function IndexScreen() {
         >
           <Text style={styles.signOut}>Sign out</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/profile')}>
+        <Text style={{ color: '#60a5fa', fontSize: 12, marginTop: 8 }}>Profile</Text>
+        </Pressable>
       </View>
+
+
 
       {/* Existing content */}
       <Text style={styles.header}>Your Device Snapshot</Text>

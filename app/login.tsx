@@ -1,45 +1,32 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert } from 'react-native';
-import * as Linking from 'expo-linking';
 import { supabase } from '../src/lib/supabase';
 import { useRouter } from 'expo-router';
 
 export default function Login() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const sendLink = async () => {
+  const handleLogin = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed.includes('@')) return Alert.alert('Enter a valid email');
+    if (!password) return Alert.alert('Enter a password');
 
     setLoading(true);
-    // Use a stable HTTPS redirector in production which forwards the Supabase
-    // token fragment to the app via the custom scheme. For local development
-    // we fall back to the Expo deep link; ensure any URLs you use are added
-    // to Supabase's Redirect URLs.
-    const appSchemeRedirect = 'sovrnmobile://auth';
-    const webRedirector = 'https://getsovrn.com/supabase-redirect'; // <-- deploy this page to your site
 
-    // Use the Expo dev deep link during development (so clicking the email opens
-    // Expo Go), and use the web redirector in production as a robust fallback.
-    const devRedirect = Linking.createURL('auth');
-    const redirectTo = __DEV__ ? devRedirect : webRedirector;
-    console.info('Sending magic link with redirect:', redirectTo);
-
-    // NOTE: If you test locally, add the dev redirect URL shown in logs to
-    // Supabase's Redirect URLs so the verify endpoint will accept it.
-
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email: trimmed,
-      options: { emailRedirectTo: redirectTo },
+      password,
     });
 
     setLoading(false);
 
     if (error) return Alert.alert('Login failed', error.message);
 
-    router.push('/check-email');
+    // Session will be set by AuthContext listener, which will navigate to home
+    router.replace('/');
   };
 
   return (
@@ -53,6 +40,23 @@ export default function Login() {
         placeholderTextColor="#888"
         autoCapitalize="none"
         keyboardType="email-address"
+        editable={!loading}
+        style={{
+          color: '#fff',
+          borderColor: '#333',
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 12,
+        }}
+      />
+
+      <TextInput
+        value={password}
+        onChangeText={setPassword}
+        placeholder="password"
+        placeholderTextColor="#888"
+        secureTextEntry
+        editable={!loading}
         style={{
           color: '#fff',
           borderColor: '#333',
@@ -63,7 +67,7 @@ export default function Login() {
       />
 
       <Pressable
-        onPress={sendLink}
+        onPress={handleLogin}
         disabled={loading}
         style={{
           backgroundColor: loading ? '#333' : '#fff',
@@ -73,12 +77,12 @@ export default function Login() {
         }}
       >
         <Text style={{ color: '#000', fontWeight: '700' }}>
-          {loading ? 'Sending…' : 'Send magic link'}
+          {loading ? 'Signing in…' : 'Sign in'}
         </Text>
       </Pressable>
 
-      <Text style={{ color: '#aaa' }}>
-        We’ll email you a sign-in link. Tapping it will bring you back into the app.
+      <Text style={{ color: '#aaa', fontSize: 12 }}>
+        Enter your email and password to sign in.
       </Text>
     </View>
   );
