@@ -1,4 +1,3 @@
-// app/profile.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -6,10 +5,13 @@ import { useAuth } from '../src/context/AuthContext';
 import { supabase } from '../src/lib/supabase';
 
 type ProfileRow = {
-  user_id: string;
+  id: string;
   full_name: string | null;
-  phone: string | null;
-  date_of_birth: string | null; // ISO date string
+  email: string | null;
+  phone_number: string | null;
+  date_of_birth: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type DeviceRow = {
@@ -43,27 +45,29 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { session, initializing } = useAuth();
 
-  const email = session?.user.email ?? '';
   const userId = session?.user.id ?? '';
+  const email = session?.user.email ?? '';
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [dob, setDob] = useState(''); // YYYY-MM-DD
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
 
   const [devices, setDevices] = useState<DeviceRow[]>([]);
 
   const canSave = useMemo(() => {
     // If DOB is entered, enforce format + 13+
-    if (dob.trim().length > 0) {
-      const okFormat = /^\d{4}-\d{2}-\d{2}$/.test(dob.trim());
+    if (dateOfBirth.trim().length > 0) {
+      const okFormat = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth.trim());
       if (!okFormat) return false;
-      if (!isAtLeast13(dob.trim())) return false;
+      if (!isAtLeast13(dateOfBirth.trim())) return false;
     }
     return true;
-  }, [dob]);
+  }, [dateOfBirth]);
 
   useEffect(() => {
     if (initializing) return;
@@ -72,45 +76,80 @@ export default function ProfileScreen() {
       return;
     }
 
-    const load = async () => {
-      setLoading(true);
+    fetchProfile();
+  }, [initializing, session, userId]);
 
-      const [{ data: profileData, error: profileErr }, { data: deviceData, error: deviceErr }] =
-        await Promise.all([
-          supabase
-            .from('profiles')
-            .select('user_id, full_name, phone, date_of_birth')
-            .eq('user_id', userId)
-            .maybeSingle(),
-          supabase
-            .from('user_devices')
-            .select(
-              'id, device_install_id, device_name, platform, model, os_name, os_version, app_version, last_seen_at, created_at'
-            )
-            .eq('user_id', userId)
-            .order('last_seen_at', { ascending: false }),
-        ]);
+  const fetchProfile = async () => {
+    setLoading(true);
+    setError('');
 
-      if (profileErr) console.warn(profileErr.message);
-      if (deviceErr) console.warn(deviceErr.message);
+    const { data: profileData, error: profileErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-      const p = profileData as ProfileRow | null;
-      setFullName(p?.full_name ?? '');
-      setPhone(p?.phone ?? '');
-      setDob(p?.date_of_birth ?? '');
+    if (profileErr) {
+      console.error('Error fetching profile:', profileErr);
+      // If profile doesn't exist, create one
+      if (profileErr.code === 'PGRST116') {
+        await createProfile();
+      } else {
+        setError('Failed to load profile');
+      }
+    } else {
+      const profile = profileData as ProfileRow;
+      setFullName(profile.full_name || '');
+      setPhoneNumber(profile.phone_number || '');
+      setDateOfBirth(profile.date_of_birth || '');
+    }
 
+    // Fetch devices
+    const { data: deviceData, error: deviceErr } = await supabase
+      .from('user_devices')
+      .select(
+        'id, device_install_id, device_name, platform, model, os_name, os_version, app_version, last_seen_at, created_at'
+      )
+      .eq('user_id', userId)
+      .order('last_seen_at', { ascending: false });
+
+    if (deviceErr) {
+      console.warn('Error fetching devices:', deviceErr.message);
+    } else {
       setDevices((deviceData as DeviceRow[]) ?? []);
+    }
 
-      setLoading(false);
-    };
+    setLoading(false);
+  };
 
-    load();
-  }, [initializing, session, userId, router]);
+  const createProfile = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          id: userId,
+          email: email,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating profile:', error);
+      setError('Failed to create profile');
+    } else {
+      const profile = data as ProfileRow;
+      setFullName(profile.full_name || '');
+      setPhoneNumber(profile.phone_number || '');
+      setDateOfBirth(profile.date_of_birth || '');
+    }
+  };
 
   const saveProfile = async () => {
     if (!session) return;
 
-    const dobTrim = dob.trim();
+    const dobTrim = dateOfBirth.trim();
     if (dobTrim.length > 0) {
       const okFormat = /^\d{4}-\d{2}-\d{2}$/.test(dobTrim);
       if (!okFormat) return Alert.alert('Invalid DOB', 'Use YYYY-MM-DD format.');
@@ -120,21 +159,40 @@ export default function ProfileScreen() {
     }
 
     setSaving(true);
+    setError('');
+    setSuccess('');
 
-    const payload: Partial<ProfileRow> = {
-      user_id: userId,
+    const updates = {
       full_name: fullName.trim() || null,
-      phone: phone.trim() || null,
+      phone_number: phoneNumber.trim() || null,
       date_of_birth: dobTrim ? dobTrim : null,
+      updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'user_id' });
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId);
 
     setSaving(false);
 
-    if (error) return Alert.alert('Save failed', error.message);
-    Alert.alert('Saved', 'Your profile has been updated.');
+    if (error) {
+      setError('Failed to save profile');
+      console.error('Error updating profile:', error);
+    } else {
+      setSuccess('Profile updated successfully!');
+      // Clear success message after 2 seconds
+      setTimeout(() => setSuccess(''), 2000);
+    }
   };
+
+  if (loading) {
+    return (
+      <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: '#0a0a0a', padding: 24, justifyContent: 'center' }}>
+        <Text style={{ color: '#fff', textAlign: 'center' }}>Loading...</Text>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1, backgroundColor: '#0a0a0a', padding: 24 }}>
@@ -165,11 +223,11 @@ export default function ProfileScreen() {
       {/* Full name */}
       <Field label="Full name" value={fullName} setValue={setFullName} placeholder="John Smith" />
 
-      {/* Phone */}
+      {/* Phone number */}
       <Field
         label="Phone number"
-        value={phone}
-        setValue={setPhone}
+        value={phoneNumber}
+        setValue={setPhoneNumber}
         placeholder="+1 555 123 4567"
         keyboardType="phone-pad"
       />
@@ -177,11 +235,14 @@ export default function ProfileScreen() {
       {/* DOB */}
       <Field
         label="Date of birth"
-        value={dob}
-        setValue={setDob}
+        value={dateOfBirth}
+        setValue={setDateOfBirth}
         placeholder="YYYY-MM-DD"
       />
-      {dob.trim().length > 0 && !canSave && (
+      <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: -6, marginBottom: 12 }}>
+        Must be 13+ years old to use the platform
+      </Text>
+      {dateOfBirth.trim().length > 0 && !canSave && (
         <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: -6, marginBottom: 12 }}>
           DOB must be in YYYY-MM-DD format and you must be 13+.
         </Text>
@@ -189,9 +250,9 @@ export default function ProfileScreen() {
 
       <Pressable
         onPress={saveProfile}
-        disabled={saving || loading || !canSave}
+        disabled={saving || !canSave}
         style={{
-          backgroundColor: saving || loading || !canSave ? '#374151' : '#fff',
+          backgroundColor: saving || !canSave ? '#374151' : '#fff',
           padding: 12,
           borderRadius: 12,
           alignItems: 'center',
@@ -204,12 +265,15 @@ export default function ProfileScreen() {
         </Text>
       </Pressable>
 
+      {error && <Text style={{ color: '#f87171', marginBottom: 12, textAlign: 'center' }}>{error}</Text>}
+      {success && <Text style={{ color: '#86efac', marginBottom: 12, textAlign: 'center' }}>{success}</Text>}
+
       {/* Devices log */}
       <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 8 }}>
-        Devices log
+        Device Log
       </Text>
       <Text style={{ color: '#9ca3af', fontSize: 12, marginBottom: 12 }}>
-        Devices that have signed in to your account. This helps audit datasets linked to you.
+        Recent device activity and login sessions.
       </Text>
 
       {devices.length === 0 ? (
