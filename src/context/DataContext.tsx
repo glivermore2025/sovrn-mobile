@@ -3,95 +3,149 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useCallback,
   ReactNode,
 } from 'react';
-import * as Device from 'expo-device';
-import * as Battery from 'expo-battery';
-import * as Network from 'expo-network';
+import {
+  collectSnapshot,
+  registerDevice,
+  uploadSnapshot,
+  loadDemographics,
+  saveDemographics as saveDemographicsRemote,
+  loadConsent,
+  saveConsent as saveConsentRemote,
+  syncAll,
+  EMPTY_DEMOGRAPHICS,
+  DEFAULT_CONSENT,
+} from '../services/syncService';
+import type {
+  DeviceSnapshot,
+  Demographics,
+  ConsentPreferences,
+} from '../services/syncService';
 
-type DeviceInfo = {
-  manufacturer: string | null;
-  modelName: string | null;
-  osName: string | null;
-  osVersion: string | null;
-  batteryLevel: number | null;   // 0–1 (e.g. 0.72)
-  isCharging: boolean | null;
-  networkType: string | null;    // "WIFI" / "CELLULAR" / etc.
+type DataContextValue = {
+  snapshot: DeviceSnapshot | null;
+  demographics: Demographics;
+  consent: ConsentPreferences;
+  contributing: boolean;
+  syncing: boolean;
+  lastSyncedAt: string | null;
+  deviceId: string | null;
+
+  refreshSnapshot: () => Promise<void>;
+  setDemographics: (d: Demographics) => void;
+  persistDemographics: (d: Demographics) => Promise<boolean>;
+  setConsent: (c: ConsentPreferences) => void;
+  persistConsent: (c: ConsentPreferences) => Promise<boolean>;
+  syncNow: () => Promise<boolean>;
 };
 
-const DataContext = createContext<DeviceInfo | null>(null);
+const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [info, setInfo] = useState<DeviceInfo>({
-    manufacturer: null,
-    modelName: null,
-    osName: null,
-    osVersion: null,
-    batteryLevel: null,
-    isCharging: null,
-    networkType: null,
-  });
+  const [snapshot, setSnapshot] = useState<DeviceSnapshot | null>(null);
+  const [demographics, setDemographicsState] = useState<Demographics>(EMPTY_DEMOGRAPHICS);
+  const [consent, setConsentState] = useState<ConsentPreferences>(DEFAULT_CONSENT);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+
+  const contributing = consent.deviceInfo || consent.demographics || consent.usageTelemetry;
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
-        // Device info
-       // Use sync fields available in expo-device for SDK 53
-        const manufacturer =
-          // some platforms expose 'manufacturer', others only 'brand'
-          (Device as any).manufacturer ?? (Device as any).brand ?? null;
-        const modelName = Device.modelName ?? null;
-        const osName = Device.osName ?? null;
-        const osVersion = Device.osVersion ?? null;
-
-        // Battery info
-        const batteryLevel = await Battery.getBatteryLevelAsync(); // 0..1
-        const powerState = await Battery.getPowerStateAsync();
-        const batteryState = (powerState as any)?.batteryState;
-
-        // Treat CHARGING and FULL as “plugged in”
-        const isCharging =
-          batteryState === Battery.BatteryState.CHARGING ||
-          batteryState === Battery.BatteryState.FULL
-            ? true
-            : batteryState === Battery.BatteryState.UNPLUGGED
-            ? false
-            : null;
-
-        // Network info
-        const net = await Network.getNetworkStateAsync();
-        const networkType = net?.type ?? null; // "WIFI" | "CELLULAR" | etc.
-
-        setInfo({
-          manufacturer,
-          modelName,
-          osName,
-          osVersion,
-          batteryLevel: batteryLevel ?? null,
-          isCharging,
-          networkType: networkType ?? null,
-        });
+        const snap = await collectSnapshot();
+        setSnapshot(snap);
       } catch (err) {
-        console.warn('Failed to gather device info:', err);
+        console.warn('Failed to collect initial snapshot:', err);
       }
-    };
 
-    load();
+      try {
+        const remoteDemographics = await loadDemographics();
+        if (remoteDemographics) setDemographicsState(remoteDemographics);
+      } catch {}
+
+      try {
+        const remoteConsent = await loadConsent();
+        if (remoteConsent) setConsentState(remoteConsent);
+      } catch {}
+
+      try {
+        const id = await registerDevice();
+        if (id) setDeviceId(id);
+      } catch {}
+    })();
   }, []);
 
+  const refreshSnapshot = useCallback(async () => {
+    const snap = await collectSnapshot();
+    setSnapshot(snap);
+  }, []);
+
+  const setDemographics = useCallback((d: Demographics) => {
+    setDemographicsState(d);
+  }, []);
+
+  const persistDemographics = useCallback(async (d: Demographics) => {
+    setDemographicsState(d);
+    return saveDemographicsRemote(d);
+  }, []);
+
+  const setConsent = useCallback((c: ConsentPreferences) => {
+    setConsentState(c);
+  }, []);
+
+  const persistConsent = useCallback(async (c: ConsentPreferences) => {
+    setConsentState(c);
+    return saveConsentRemote(c);
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const result = await syncAll();
+      if (result.snapshotUploaded) {
+        setLastSyncedAt(new Date().toISOString());
+        const snap = await collectSnapshot();
+        setSnapshot(snap);
+      }
+      return result.snapshotUploaded;
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  const value: DataContextValue = {
+    snapshot,
+    demographics,
+    consent,
+    contributing,
+    syncing,
+    lastSyncedAt,
+    deviceId,
+    refreshSnapshot,
+    setDemographics,
+    persistDemographics,
+    setConsent,
+    persistConsent,
+    syncNow,
+  };
+
   return (
-    <DataContext.Provider value={info}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );
 }
 
-// ✅ this is what App.tsx is trying to import
-export function useData() {
+export function useDataContext() {
   const ctx = useContext(DataContext);
   if (!ctx) {
-    // This helps catch cases where we forgot <DataProvider>
-    throw new Error('useData must be used inside a <DataProvider>');
+    throw new Error('useDataContext must be used inside a <DataProvider>');
   }
   return ctx;
 }
+
+export const useData = useDataContext;

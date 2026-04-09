@@ -1,10 +1,9 @@
-// App.tsx
 import React from 'react';
 import { SafeAreaView, ScrollView, Text, View, StyleSheet } from 'react-native';
 import { DataProvider, useData } from './src/context/DataContext';
 
 function InnerApp() {
-  const data = useData();
+  const { snapshot } = useData();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -15,29 +14,28 @@ function InnerApp() {
       </Text>
 
       <View style={styles.card}>
-        <Row label="Manufacturer" value={data.manufacturer} />
-        <Row label="Model" value={data.modelName} />
-        <Row label="OS" value={data.osName} />
-        <Row label="OS Version" value={data.osVersion} />
+        <Row label="Model" value={snapshot?.modelName} />
+        <Row label="OS" value={snapshot?.osName} />
+        <Row label="OS Version" value={snapshot?.osVersion} />
         <Row
           label="Battery Level"
           value={
-            data.batteryLevel !== null
-              ? `${Math.round(data.batteryLevel * 100)}%`
-              : '—'
+            snapshot?.batteryLevel != null
+              ? `${Math.round(snapshot.batteryLevel * 100)}%`
+              : null
           }
         />
         <Row
           label="Charging"
           value={
-            data.isCharging === null
-              ? '—'
-              : data.isCharging
+            snapshot?.isCharging == null
+              ? null
+              : snapshot.isCharging
                 ? 'Yes'
                 : 'No'
           }
         />
-        <Row label="Network" value={data.networkType ?? '—'} />
+        <Row label="Network" value={snapshot?.networkType} />
       </View>
 
       <Text style={styles.footer}>
@@ -48,11 +46,11 @@ function InnerApp() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string | number | null }) {
+function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{String(value ?? '—')}</Text>
+      <Text style={styles.value}>{String(value ?? '\u2014')}</Text>
     </View>
   );
 }
@@ -115,4 +113,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-

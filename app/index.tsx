@@ -1,27 +1,17 @@
-// app/index.tsx
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet, Pressable } from 'react-native';
+import { ScrollView, Text, View, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { useData } from '../src/context/DataContext';
+import { useDataContext } from '../src/context/DataContext';
 import { useAuth } from '../src/context/AuthContext';
 import { supabase } from '../src/lib/supabase';
 
-function Row({ label, value }: { label: string; value: string | number | null }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{String(value ?? '—')}</Text>
-    </View>
-  );
-}
-
 export default function IndexScreen() {
   const router = useRouter();
-  const data = useData();
+  const { snapshot, contributing, syncing, lastSyncedAt, refreshSnapshot, syncNow } =
+    useDataContext();
   const { session, initializing } = useAuth();
 
-  // Redirect to login once auth has finished restoring and there's no session
   React.useEffect(() => {
     if (!initializing && !session) {
       router.replace('/login');
@@ -34,62 +24,83 @@ export default function IndexScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* Auth header */}
       <View style={styles.authHeader}>
         <Text style={styles.authText}>Signed in as</Text>
         <Text style={styles.authEmail}>{email}</Text>
-
-        <Pressable
-          onPress={async () => {
-            await supabase.auth.signOut();
-            router.replace('/login');
-          }}
-        >
-          <Text style={styles.signOut}>Sign out</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/profile')}>
-        <Text style={{ color: '#60a5fa', fontSize: 12, marginTop: 8 }}>Profile</Text>
-        </Pressable>
+        <View style={styles.authLinks}>
+          <Pressable
+            onPress={async () => {
+              await supabase.auth.signOut();
+              router.replace('/login');
+            }}
+          >
+            <Text style={styles.signOut}>Sign out</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/profile')}>
+            <Text style={styles.link}>Profile</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/my-data')}>
+            <Text style={styles.link}>My Data</Text>
+          </Pressable>
+        </View>
       </View>
 
-
-
-      {/* Existing content */}
-      <Text style={styles.header}>Your Device Snapshot</Text>
-      <Text style={styles.subtext}>
-        This is the kind of info Sovrn will eventually package (with your consent)
-        to earn you money in pooled datasets.
-      </Text>
+      <Text style={styles.heading}>Your Data Value</Text>
+      <Text style={styles.earningsValue}>$0.00</Text>
+      <Text style={styles.smallNote}>Lifetime earnings (coming soon)</Text>
 
       <View style={styles.card}>
-        <Row label="Manufacturer" value={data.manufacturer} />
-        <Row label="Model" value={data.modelName} />
-        <Row label="OS" value={data.osName} />
-        <Row label="OS Version" value={data.osVersion} />
-        <Row
-          label="Battery Level"
-          value={
-            data.batteryLevel !== null
-              ? `${Math.round((data.batteryLevel ?? 0) * 100)}%`
-              : '—'
-          }
-        />
-        <Row
-          label="Charging"
-          value={
-            data.isCharging === null
-              ? '—'
-              : data.isCharging
-                ? 'Yes'
-                : 'No'
-          }
-        />
-        <Row label="Network" value={data.networkType ?? '—'} />
+        <Text style={styles.cardTitle}>Contribution Status</Text>
+        <Text style={styles.cardBody}>
+          {contributing ? 'Contributing to Sovrn pools' : 'Not contributing yet'}
+        </Text>
+        {!contributing && (
+          <Pressable onPress={() => router.push('/settings')}>
+            <Text style={styles.ctaLink}>Enable in Settings</Text>
+          </Pressable>
+        )}
       </View>
 
-      <Text style={styles.footer}>
-        Soon: opt in to specific datasets, see your projected payout,
-        and withdraw earnings.
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Last Device Snapshot</Text>
+        {snapshot ? (
+          <>
+            <Text style={styles.cardBody}>Device: {snapshot.modelName ?? 'Unknown'}</Text>
+            <Text style={styles.cardBody}>OS: {snapshot.osVersion ?? 'Unknown'}</Text>
+            <Text style={styles.cardBody}>
+              Battery:{' '}
+              {snapshot.batteryLevel != null
+                ? Math.round(snapshot.batteryLevel * 100) + '%'
+                : 'Unknown'}
+              {snapshot.lowPowerMode ? ' (Low Power)' : ''}
+            </Text>
+            <Text style={styles.cardBody}>Network: {snapshot.networkType ?? 'Unknown'}</Text>
+          </>
+        ) : (
+          <Text style={styles.cardBody}>No snapshot yet</Text>
+        )}
+
+        <TouchableOpacity style={styles.button} onPress={refreshSnapshot}>
+          <Text style={styles.buttonText}>Refresh Snapshot</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.button, styles.syncButton, syncing && { opacity: 0.5 }]}
+        onPress={syncNow}
+        disabled={syncing}
+      >
+        <Text style={styles.buttonText}>{syncing ? 'Syncing...' : 'Sync Now'}</Text>
+      </TouchableOpacity>
+
+      {lastSyncedAt && (
+        <Text style={styles.syncNote}>
+          Last synced: {new Date(lastSyncedAt).toLocaleString()}
+        </Text>
+      )}
+
+      <Text style={styles.disclaimer}>
+        We never sell you. We sell aggregated pools. You get paid.
       </Text>
     </ScrollView>
   );
@@ -101,68 +112,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     padding: 24,
   },
-
-  /* Auth header */
   authHeader: {
     marginBottom: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#374151',
   },
-  authText: {
-    color: '#9ca3af',
-    fontSize: 12,
-  },
-  authEmail: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  signOut: {
-    marginTop: 6,
-    color: '#ef4444',
-    fontSize: 12,
-  },
-
-  header: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  subtext: {
-    color: '#9ca3af',
-    fontSize: 14,
-    marginBottom: 16,
-  },
+  authText: { color: '#9ca3af', fontSize: 12 },
+  authEmail: { color: 'white', fontSize: 14, fontWeight: '500' },
+  authLinks: { flexDirection: 'row', gap: 16, marginTop: 8 },
+  signOut: { color: '#ef4444', fontSize: 12 },
+  link: { color: '#60a5fa', fontSize: 12 },
+  heading: { color: '#fff', fontSize: 22, fontWeight: '600', marginBottom: 6 },
+  earningsValue: { color: '#38bdf8', fontSize: 36, fontWeight: '700' },
+  smallNote: { color: '#6b7280', fontSize: 12, marginBottom: 20 },
   card: {
     backgroundColor: '#1f2937',
     borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#374151',
+    marginBottom: 16,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomColor: '#374151',
-    borderBottomWidth: 1,
+  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 8 },
+  cardBody: { color: '#d1d5db', fontSize: 14, marginBottom: 4 },
+  ctaLink: { color: '#38bdf8', fontSize: 13, marginTop: 8 },
+  button: {
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 12,
   },
-  label: {
-    color: '#9ca3af',
-    fontSize: 14,
-  },
-  value: {
-    color: 'white',
-    fontSize: 14,
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
-  footer: {
-    marginTop: 24,
-    fontSize: 13,
+  syncButton: { backgroundColor: '#10b981' },
+  buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  syncNote: { color: '#6b7280', fontSize: 11, textAlign: 'center', marginTop: 6 },
+  disclaimer: {
     color: '#6b7280',
-    lineHeight: 18,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 24,
+    lineHeight: 16,
   },
 });
