@@ -4,6 +4,7 @@ import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
 import { Dimensions, Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { collectLocationData, collectAppUsageData, LocationData, AppUsageData } from './dataCollector';
 
 export type DeviceSnapshot = {
   modelName: string | null;
@@ -20,6 +21,8 @@ export type DeviceSnapshot = {
   isInternetReachable: boolean | null;
   screenWidth: number;
   screenHeight: number;
+  locationData: LocationData | null;
+  appUsageData: AppUsageData | null;
   timestamp: string;
 };
 
@@ -60,7 +63,9 @@ async function getSessionUserId(): Promise<string | null> {
   return data.session?.user?.id ?? null;
 }
 
-export async function collectSnapshot(): Promise<DeviceSnapshot> {
+export async function collectSnapshot(
+  consent: ConsentPreferences = DEFAULT_CONSENT,
+): Promise<DeviceSnapshot> {
   const { width, height } = Dimensions.get('window');
 
   let batteryLevel: number | null = null;
@@ -89,6 +94,11 @@ export async function collectSnapshot(): Promise<DeviceSnapshot> {
     isInternetReachable = net?.isInternetReachable ?? null;
   } catch {}
 
+  const [locationData, appUsageData] = await Promise.all([
+    consent.locationData ? collectLocationData() : Promise.resolve(null),
+    consent.appUsage ? collectAppUsageData() : Promise.resolve(null),
+  ]);
+
   return {
     modelName: Device.modelName ?? null,
     osName: Device.osName ?? null,
@@ -104,6 +114,8 @@ export async function collectSnapshot(): Promise<DeviceSnapshot> {
     isInternetReachable,
     screenWidth: width,
     screenHeight: height,
+    locationData,
+    appUsageData,
     timestamp: new Date().toISOString(),
   };
 }

@@ -61,7 +61,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const snap = await collectSnapshot();
+        const snap = await collectSnapshot(consent);
         setSnapshot(snap);
       } catch (err) {
         console.warn('Failed to collect initial snapshot:', err);
@@ -85,9 +85,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshSnapshot = useCallback(async () => {
-    const snap = await collectSnapshot();
+    const snap = await collectSnapshot(consent);
     setSnapshot(snap);
-  }, []);
+  }, [consent]);
 
   const setDemographics = useCallback((d: Demographics) => {
     setDemographicsState(d);
