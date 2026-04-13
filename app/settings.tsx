@@ -1,6 +1,7 @@
-import { View, Text, Switch, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Switch, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useDataContext } from '../src/context/DataContext';
 import { useState } from 'react';
+import { colors, spacing, radius, font } from '../src/theme';
 
 export default function SettingsScreen() {
   const { consent, persistConsent } = useDataContext();
@@ -24,98 +25,144 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Data Sharing</Text>
-      <Text style={styles.subtext}>
-        Choose what data you contribute to Sovrn pools. You can change these at any time.
+    <ScrollView style={s.scroll} contentContainerStyle={s.container}>
+      <Text style={s.title}>Data Sharing</Text>
+      <Text style={s.subtitle}>
+        Choose what you contribute. Change anytime.
       </Text>
 
-      <View style={styles.row}>
-        <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Device Info</Text>
-          <Text style={styles.rowDesc}>Model, OS, screen size, battery</Text>
-        </View>
-        <Switch
+      <View style={s.card}>
+        <ConsentToggle
+          title="Device Info"
+          description="Model, OS, screen size, battery"
           value={draft.deviceInfo}
-          onValueChange={(v) => setDraft({ ...draft, deviceInfo: v })}
-          trackColor={{ true: '#38bdf8', false: '#374151' }}
-          thumbColor="#fff"
+          onToggle={(v) => setDraft({ ...draft, deviceInfo: v })}
         />
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Demographics</Text>
-          <Text style={styles.rowDesc}>Age, industry, region, household</Text>
-        </View>
-        <Switch
+        <View style={s.divider} />
+        <ConsentToggle
+          title="Demographics"
+          description="Age, industry, region, household"
           value={draft.demographics}
-          onValueChange={(v) => setDraft({ ...draft, demographics: v })}
-          trackColor={{ true: '#38bdf8', false: '#374151' }}
-          thumbColor="#fff"
+          onToggle={(v) => setDraft({ ...draft, demographics: v })}
         />
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Usage Telemetry</Text>
-          <Text style={styles.rowDesc}>Network type, charging patterns</Text>
-        </View>
-        <Switch
+        <View style={s.divider} />
+        <ConsentToggle
+          title="Usage Telemetry"
+          description="Network type, charging patterns"
           value={draft.usageTelemetry}
-          onValueChange={(v) => setDraft({ ...draft, usageTelemetry: v })}
-          trackColor={{ true: '#38bdf8', false: '#374151' }}
-          thumbColor="#fff"
+          onToggle={(v) => setDraft({ ...draft, usageTelemetry: v })}
+          last
         />
       </View>
 
       {dirty && (
         <TouchableOpacity
-          style={[styles.saveBtn, saving && { opacity: 0.5 }]}
+          style={[s.saveBtn, saving && { opacity: 0.4 }]}
           onPress={handleSave}
           disabled={saving}
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Preferences'}</Text>
+          <Text style={s.saveBtnText}>{saving ? 'Saving...' : 'Save Preferences'}</Text>
         </TouchableOpacity>
       )}
 
-      <Text style={styles.footer}>
-        Your data is always anonymized before being included in pooled datasets.
-        We never sell individual records.
-      </Text>
+      <View style={s.infoCard}>
+        <Text style={s.infoIcon}>🔒</Text>
+        <Text style={s.infoText}>
+          Your data is always anonymized before being included in pooled datasets. We never sell individual records.
+        </Text>
+      </View>
+    </ScrollView>
+  );
+}
+
+function ConsentToggle({
+  title,
+  description,
+  value,
+  onToggle,
+  last,
+}: {
+  title: string;
+  description: string;
+  value: boolean;
+  onToggle: (v: boolean) => void;
+  last?: boolean;
+}) {
+  return (
+    <View style={s.toggleRow}>
+      <View style={s.toggleText}>
+        <Text style={s.toggleTitle}>{title}</Text>
+        <Text style={s.toggleDesc}>{description}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ true: colors.accent, false: colors.surface }}
+        thumbColor={colors.white}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a', padding: 20 },
-  heading: { color: '#fff', fontSize: 20, fontWeight: '600', marginBottom: 4 },
-  subtext: { color: '#9ca3af', fontSize: 13, marginBottom: 20, lineHeight: 18 },
-  row: {
+const s = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: colors.bg },
+  container: { padding: spacing.xxl, paddingBottom: 40 },
+
+  title: {
+    color: colors.white,
+    fontSize: font.xxl,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: font.md,
+    marginBottom: spacing.xxl,
+  },
+
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.separator,
+  },
+
+  toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1f2937',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
+    paddingVertical: spacing.md,
   },
-  rowText: { flex: 1, marginRight: 12 },
-  rowTitle: { color: '#fff', fontSize: 15, fontWeight: '500' },
-  rowDesc: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
+  toggleText: { flex: 1, marginRight: spacing.lg },
+  toggleTitle: { color: colors.white, fontSize: font.md, fontWeight: '500' },
+  toggleDesc: { color: colors.textTertiary, fontSize: font.sm, marginTop: 2 },
+
   saveBtn: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 16,
+    marginBottom: spacing.xl,
   },
-  saveBtnText: { color: '#fff', fontWeight: '600' },
-  footer: {
-    color: '#6b7280',
-    fontSize: 12,
-    marginTop: 24,
-    lineHeight: 16,
-    textAlign: 'center',
+  saveBtnText: { color: colors.bg, fontSize: font.md, fontWeight: '700' },
+
+  infoCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  infoIcon: { fontSize: 20 },
+  infoText: {
+    color: colors.textTertiary,
+    fontSize: font.sm,
+    flex: 1,
+    lineHeight: 18,
   },
 });

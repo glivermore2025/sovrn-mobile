@@ -1,6 +1,7 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useDataContext } from '../src/context/DataContext';
 import { useState } from 'react';
+import { colors, spacing, radius, font } from '../src/theme';
 
 export default function MyDataScreen() {
   const { demographics, persistDemographics, snapshot, refreshSnapshot } = useDataContext();
@@ -32,147 +33,213 @@ export default function MyDataScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>About You</Text>
+    <ScrollView style={s.scroll} contentContainerStyle={s.container}>
+      <Text style={s.title}>My Data</Text>
+      <Text style={s.subtitle}>Tell us about yourself to increase your data value.</Text>
 
-      <Text style={styles.label}>Age Range</Text>
-      <TextInput
-        style={styles.input}
-        value={draft.ageRange}
-        onChangeText={(t) => setDraft({ ...draft, ageRange: t })}
-        placeholder="ex: 25-34"
-        placeholderTextColor="#6b7280"
-      />
+      <View style={s.card}>
+        <Text style={s.fieldLabel}>Age Range</Text>
+        <TextInput
+          style={s.input}
+          value={draft.ageRange}
+          onChangeText={(t) => setDraft({ ...draft, ageRange: t })}
+          placeholder="e.g. 25-34"
+          placeholderTextColor={colors.textMuted}
+        />
 
-      <Text style={styles.label}>Industry / Role</Text>
-      <TextInput
-        style={styles.input}
-        value={draft.industry}
-        onChangeText={(t) => setDraft({ ...draft, industry: t })}
-        placeholder="ex: Healthcare analytics"
-        placeholderTextColor="#6b7280"
-      />
+        <Text style={s.fieldLabel}>Industry / Role</Text>
+        <TextInput
+          style={s.input}
+          value={draft.industry}
+          onChangeText={(t) => setDraft({ ...draft, industry: t })}
+          placeholder="e.g. Healthcare analytics"
+          placeholderTextColor={colors.textMuted}
+        />
 
-      <Text style={styles.label}>Region (ZIP or state)</Text>
-      <TextInput
-        style={styles.input}
-        value={draft.region}
-        onChangeText={(t) => setDraft({ ...draft, region: t })}
-        placeholder="ex: 94107 or CO"
-        placeholderTextColor="#6b7280"
-      />
+        <Text style={s.fieldLabel}>Region</Text>
+        <TextInput
+          style={s.input}
+          value={draft.region}
+          onChangeText={(t) => setDraft({ ...draft, region: t })}
+          placeholder="e.g. 94107 or CO"
+          placeholderTextColor={colors.textMuted}
+        />
 
-      <Text style={styles.label}>Household Size</Text>
-      <TextInput
-        style={styles.input}
-        value={draft.householdSize}
-        onChangeText={(t) => setDraft({ ...draft, householdSize: t })}
-        placeholder="ex: 2"
-        placeholderTextColor="#6b7280"
-      />
+        <Text style={s.fieldLabel}>Household Size</Text>
+        <TextInput
+          style={s.input}
+          value={draft.householdSize}
+          onChangeText={(t) => setDraft({ ...draft, householdSize: t })}
+          placeholder="e.g. 2"
+          placeholderTextColor={colors.textMuted}
+        />
+      </View>
 
-      <Text style={styles.label}>Devices Owned</Text>
-      <View style={styles.chipRow}>
+      <Text style={s.sectionLabel}>Devices Owned</Text>
+      <View style={s.chipRow}>
         {['iPhone', 'Android Phone', 'PS5', 'Xbox', 'EV'].map((d) => {
           const active = draft.devicesOwned.includes(d);
           return (
             <TouchableOpacity
               key={d}
-              style={[styles.chip, active && styles.chipActive]}
+              style={[s.chip, active && s.chipActive]}
               onPress={() => toggleDeviceOwned(d)}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{d}</Text>
+              <Text style={[s.chipText, active && s.chipTextActive]}>{d}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       <TouchableOpacity
-        style={[styles.saveBtn, saving && { opacity: 0.5 }]}
+        style={[s.saveBtn, saving && { opacity: 0.4 }]}
         onPress={saveDemographics}
         disabled={saving}
       >
-        <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Profile'}</Text>
+        <Text style={s.saveBtnText}>{saving ? 'Saving...' : 'Save Profile'}</Text>
       </TouchableOpacity>
 
-      <View style={styles.divider} />
-
-      <View style={styles.snapshotHeader}>
-        <Text style={styles.heading}>Device Snapshot</Text>
-        <TouchableOpacity onPress={refreshSnapshot}>
-          <Text style={styles.refreshLink}>Refresh</Text>
-        </TouchableOpacity>
+      <View style={s.snapshotSection}>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Device Snapshot</Text>
+          <TouchableOpacity onPress={refreshSnapshot}>
+            <Text style={s.refreshLink}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+        {snapshot ? (
+          <View style={s.snapshotCard}>
+            <SnapshotRow label="Model" value={snapshot.modelName ?? 'Unknown'} />
+            <SnapshotRow label="OS" value={snapshot.osVersion ?? 'Unknown'} />
+            <SnapshotRow
+              label="Battery"
+              value={
+                snapshot.batteryLevel != null
+                  ? Math.round(snapshot.batteryLevel * 100) + '%'
+                  : 'Unknown'
+              }
+            />
+            <SnapshotRow
+              label="Captured"
+              value={new Date(snapshot.timestamp).toLocaleString()}
+              last
+            />
+          </View>
+        ) : (
+          <View style={s.snapshotCard}>
+            <Text style={s.emptyText}>No snapshot captured yet.</Text>
+          </View>
+        )}
       </View>
-      {snapshot ? (
-        <>
-          <Text style={styles.meta}>Model: {snapshot.modelName ?? 'Unknown'}</Text>
-          <Text style={styles.meta}>OS: {snapshot.osVersion ?? 'Unknown'}</Text>
-          <Text style={styles.meta}>
-            Battery:{' '}
-            {snapshot.batteryLevel != null
-              ? Math.round(snapshot.batteryLevel * 100) + '%'
-              : 'Unknown'}{' '}
-            {snapshot.lowPowerMode ? '(Low Power)' : ''}
-          </Text>
-          <Text style={styles.meta}>
-            Captured: {new Date(snapshot.timestamp).toLocaleString()}
-          </Text>
-        </>
-      ) : (
-        <Text style={styles.meta}>No snapshot captured yet.</Text>
-      )}
+    </ScrollView>
+  );
+}
+
+function SnapshotRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View style={[s.snapRow, !last && s.snapRowBorder]}>
+      <Text style={s.snapLabel}>{label}</Text>
+      <Text style={s.snapValue}>{value}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a', padding: 20 },
-  heading: { color: '#fff', fontSize: 20, fontWeight: '600', marginBottom: 12 },
-  label: { color: '#fff', fontSize: 14, fontWeight: '500', marginTop: 12 },
-  input: {
-    backgroundColor: '#1f2937',
-    color: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 6,
-    fontSize: 14,
+const s = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: colors.bg },
+  container: { padding: spacing.xxl, paddingBottom: 40 },
+
+  title: {
+    color: colors.white,
+    fontSize: font.xxl,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: font.md,
+    marginBottom: spacing.xxl,
+  },
+
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  fieldLabel: {
+    color: colors.textSecondary,
+    fontSize: font.sm,
+    fontWeight: '500',
+    marginBottom: spacing.xs,
+    marginTop: spacing.md,
+  },
+  input: {
+    backgroundColor: colors.surface,
+    color: colors.white,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: font.md,
+  },
+
+  sectionLabel: {
+    color: colors.textSecondary,
+    fontSize: font.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xl },
   chip: {
-    borderColor: '#4b5563',
+    borderColor: colors.surfaceHover,
     borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     backgroundColor: 'transparent',
   },
   chipActive: {
-    backgroundColor: '#38bdf8',
-    borderColor: '#38bdf8',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
-  chipText: { color: '#d1d5db', fontSize: 12 },
-  chipTextActive: { color: '#000', fontWeight: '600' },
+  chipText: { color: colors.textSecondary, fontSize: font.sm },
+  chipTextActive: { color: colors.bg, fontWeight: '600' },
+
   saveBtn: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.accent,
+    borderRadius: radius.md,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 20,
+    marginBottom: spacing.xxxl,
   },
-  saveBtnText: { color: '#fff', fontWeight: '600' },
-  divider: {
-    height: 1,
-    backgroundColor: '#1f2937',
-    marginVertical: 24,
-  },
-  snapshotHeader: {
+  saveBtnText: { color: colors.bg, fontSize: font.md, fontWeight: '700' },
+
+  snapshotSection: {},
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  refreshLink: { color: '#38bdf8', fontSize: 13 },
-  meta: { color: '#9ca3af', fontSize: 13, marginBottom: 4 },
+  sectionTitle: { color: colors.white, fontSize: font.lg, fontWeight: '600' },
+  refreshLink: { color: colors.accent, fontSize: font.sm, fontWeight: '500' },
+
+  snapshotCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  snapRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  snapRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.separator,
+  },
+  snapLabel: { color: colors.textSecondary, fontSize: font.md },
+  snapValue: { color: colors.white, fontSize: font.md, fontWeight: '500' },
+  emptyText: { color: colors.textTertiary, fontSize: font.md, textAlign: 'center', padding: spacing.lg },
 });

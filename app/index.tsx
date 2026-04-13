@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { useDataContext } from '../src/context/DataContext';
 import { useAuth } from '../src/context/AuthContext';
-import { supabase } from '../src/lib/supabase';
+import { colors, spacing, radius, font } from '../src/theme';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -20,136 +20,207 @@ export default function IndexScreen() {
 
   if (initializing || !session) return null;
 
-  const email = session.user.email ?? '';
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.authHeader}>
-        <Text style={styles.authText}>Signed in as</Text>
-        <Text style={styles.authEmail}>{email}</Text>
-        <View style={styles.authLinks}>
-          <Pressable
-            onPress={async () => {
-              await supabase.auth.signOut();
-              router.replace('/login');
-            }}
-          >
-            <Text style={styles.signOut}>Sign out</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/profile')}>
-            <Text style={styles.link}>Profile</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/my-data')}>
-            <Text style={styles.link}>My Data</Text>
-          </Pressable>
+    <ScrollView style={s.scroll} contentContainerStyle={s.container}>
+      <Text style={s.logo}>sovrn</Text>
+
+      <View style={s.heroCard}>
+        <Text style={s.heroLabel}>Lifetime Earnings</Text>
+        <Text style={s.heroAmount}>$0.00</Text>
+        <Text style={s.heroPending}>$0.00 pending</Text>
+      </View>
+
+      <View style={s.statusRow}>
+        <View style={s.statusItem}>
+          <View style={[s.dot, contributing ? s.dotActive : s.dotInactive]} />
+          <Text style={s.statusText}>
+            {contributing ? 'Contributing' : 'Not Contributing'}
+          </Text>
+        </View>
+        <View style={s.statusItem}>
+          <View style={[s.dot, snapshot ? s.dotActive : s.dotInactive]} />
+          <Text style={s.statusText}>
+            {snapshot ? 'Device Linked' : 'No Device'}
+          </Text>
         </View>
       </View>
 
-      <Text style={styles.heading}>Your Data Value</Text>
-      <Text style={styles.earningsValue}>$0.00</Text>
-      <Text style={styles.smallNote}>Lifetime earnings (coming soon)</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Contribution Status</Text>
-        <Text style={styles.cardBody}>
-          {contributing ? 'Contributing to Sovrn pools' : 'Not contributing yet'}
-        </Text>
-        {!contributing && (
-          <Pressable onPress={() => router.push('/settings')}>
-            <Text style={styles.ctaLink}>Enable in Settings</Text>
-          </Pressable>
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Last Device Snapshot</Text>
-        {snapshot ? (
-          <>
-            <Text style={styles.cardBody}>Device: {snapshot.modelName ?? 'Unknown'}</Text>
-            <Text style={styles.cardBody}>OS: {snapshot.osVersion ?? 'Unknown'}</Text>
-            <Text style={styles.cardBody}>
-              Battery:{' '}
-              {snapshot.batteryLevel != null
-                ? Math.round(snapshot.batteryLevel * 100) + '%'
-                : 'Unknown'}
-              {snapshot.lowPowerMode ? ' (Low Power)' : ''}
-            </Text>
-            <Text style={styles.cardBody}>Network: {snapshot.networkType ?? 'Unknown'}</Text>
-          </>
-        ) : (
-          <Text style={styles.cardBody}>No snapshot yet</Text>
-        )}
-
-        <TouchableOpacity style={styles.button} onPress={refreshSnapshot}>
-          <Text style={styles.buttonText}>Refresh Snapshot</Text>
+      {!contributing && (
+        <TouchableOpacity style={s.ctaButton} onPress={() => router.push('/settings')}>
+          <Text style={s.ctaText}>Start Earning</Text>
         </TouchableOpacity>
+      )}
+
+      <View style={s.section}>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Device Snapshot</Text>
+          <Pressable onPress={refreshSnapshot}>
+            <Text style={s.actionLink}>Refresh</Text>
+          </Pressable>
+        </View>
+
+        {snapshot ? (
+          <View style={s.card}>
+            <InfoRow label="Device" value={snapshot.modelName ?? 'Unknown'} />
+            <InfoRow label="OS" value={snapshot.osVersion ?? 'Unknown'} />
+            <InfoRow
+              label="Battery"
+              value={
+                snapshot.batteryLevel != null
+                  ? Math.round(snapshot.batteryLevel * 100) + '%'
+                  : 'Unknown'
+              }
+            />
+            <InfoRow label="Network" value={snapshot.networkType ?? 'Unknown'} last />
+          </View>
+        ) : (
+          <View style={s.card}>
+            <Text style={s.emptyText}>No snapshot captured yet</Text>
+          </View>
+        )}
       </View>
 
       <TouchableOpacity
-        style={[styles.button, styles.syncButton, syncing && { opacity: 0.5 }]}
+        style={[s.syncButton, syncing && s.buttonDisabled]}
         onPress={syncNow}
         disabled={syncing}
+        activeOpacity={0.7}
       >
-        <Text style={styles.buttonText}>{syncing ? 'Syncing...' : 'Sync Now'}</Text>
+        <Text style={s.syncButtonText}>{syncing ? 'Syncing...' : 'Sync Now'}</Text>
       </TouchableOpacity>
 
       {lastSyncedAt && (
-        <Text style={styles.syncNote}>
-          Last synced: {new Date(lastSyncedAt).toLocaleString()}
+        <Text style={s.syncNote}>
+          Last synced {new Date(lastSyncedAt).toLocaleString()}
         </Text>
       )}
 
-      <Text style={styles.disclaimer}>
-        We never sell you. We sell aggregated pools. You get paid.
-      </Text>
+      <Text style={s.tagline}>Your data, your earnings.</Text>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: '#0a0a0a',
-    padding: 24,
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View style={[s.infoRow, !last && s.infoRowBorder]}>
+      <Text style={s.infoLabel}>{label}</Text>
+      <Text style={s.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: colors.bg },
+  container: { padding: spacing.xxl, paddingBottom: 40 },
+
+  logo: {
+    color: colors.white,
+    fontSize: font.xl,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: spacing.xxl,
   },
-  authHeader: {
-    marginBottom: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  authText: { color: '#9ca3af', fontSize: 12 },
-  authEmail: { color: 'white', fontSize: 14, fontWeight: '500' },
-  authLinks: { flexDirection: 'row', gap: 16, marginTop: 8 },
-  signOut: { color: '#ef4444', fontSize: 12 },
-  link: { color: '#60a5fa', fontSize: 12 },
-  heading: { color: '#fff', fontSize: 22, fontWeight: '600', marginBottom: 6 },
-  earningsValue: { color: '#38bdf8', fontSize: 36, fontWeight: '700' },
-  smallNote: { color: '#6b7280', fontSize: 12, marginBottom: 20 },
-  card: {
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  cardBody: { color: '#d1d5db', fontSize: 14, marginBottom: 4 },
-  ctaLink: { color: '#38bdf8', fontSize: 13, marginTop: 8 },
-  button: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    paddingVertical: 10,
+
+  heroCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    padding: spacing.xxl,
     alignItems: 'center',
-    marginTop: 12,
+    marginBottom: spacing.xl,
   },
-  syncButton: { backgroundColor: '#10b981' },
-  buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  syncNote: { color: '#6b7280', fontSize: 11, textAlign: 'center', marginTop: 6 },
-  disclaimer: {
-    color: '#6b7280',
-    fontSize: 12,
+  heroLabel: { color: colors.textSecondary, fontSize: font.sm, marginBottom: spacing.xs },
+  heroAmount: {
+    color: colors.white,
+    fontSize: font.hero,
+    fontWeight: '700',
+    letterSpacing: -2,
+  },
+  heroPending: {
+    color: colors.textTertiary,
+    fontSize: font.sm,
+    marginTop: spacing.xs,
+  },
+
+  statusRow: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.card,
+    borderRadius: radius.full,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  dotActive: { backgroundColor: colors.accent },
+  dotInactive: { backgroundColor: colors.textMuted },
+  statusText: { color: colors.textSecondary, fontSize: font.sm },
+
+  ctaButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  ctaText: { color: colors.bg, fontSize: font.md, fontWeight: '700' },
+
+  section: { marginBottom: spacing.xl },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionTitle: { color: colors.white, fontSize: font.lg, fontWeight: '600' },
+  actionLink: { color: colors.accent, fontSize: font.sm, fontWeight: '500' },
+
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  infoRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.separator,
+  },
+  infoLabel: { color: colors.textSecondary, fontSize: font.md },
+  infoValue: { color: colors.white, fontSize: font.md, fontWeight: '500' },
+  emptyText: { color: colors.textTertiary, fontSize: font.md, textAlign: 'center', padding: spacing.lg },
+
+  syncButton: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  buttonDisabled: { opacity: 0.4 },
+  syncButtonText: { color: colors.white, fontSize: font.md, fontWeight: '600' },
+
+  syncNote: {
+    color: colors.textMuted,
+    fontSize: font.xs,
     textAlign: 'center',
-    marginTop: 24,
-    lineHeight: 16,
+    marginBottom: spacing.xxl,
+  },
+
+  tagline: {
+    color: colors.textMuted,
+    fontSize: font.xs,
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
 });

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { supabase } from '../src/lib/supabase';
 import { useRouter } from 'expo-router';
+import { colors, spacing, radius, font } from '../src/theme';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -25,65 +26,103 @@ export default function Login() {
 
     if (error) return Alert.alert('Login failed', error.message);
 
-    // Session will be set by AuthContext listener, which will navigate to home
     router.replace('/');
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>Sign in</Text>
+    <KeyboardAvoidingView
+      style={s.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={s.inner}>
+        <View style={s.top}>
+          <Text style={s.brand}>sovrn</Text>
+          <Text style={s.tagline}>Own your data. Get paid.</Text>
+        </View>
 
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@example.com"
-        placeholderTextColor="#888"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        editable={!loading}
-        style={{
-          color: '#fff',
-          borderColor: '#333',
-          borderWidth: 1,
-          borderRadius: 12,
-          padding: 12,
-        }}
-      />
+        <View style={s.form}>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email address"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={!loading}
+            style={s.input}
+          />
 
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="password"
-        placeholderTextColor="#888"
-        secureTextEntry
-        editable={!loading}
-        style={{
-          color: '#fff',
-          borderColor: '#333',
-          borderWidth: 1,
-          borderRadius: 12,
-          padding: 12,
-        }}
-      />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            editable={!loading}
+            style={s.input}
+          />
 
-      <Pressable
-        onPress={handleLogin}
-        disabled={loading}
-        style={{
-          backgroundColor: loading ? '#333' : '#fff',
-          padding: 12,
-          borderRadius: 12,
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{ color: '#000', fontWeight: '700' }}>
-          {loading ? 'Signing in…' : 'Sign in'}
+          <Pressable
+            onPress={handleLogin}
+            disabled={loading}
+            style={({ pressed }) => [
+              s.button,
+              loading && s.buttonDisabled,
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <Text style={s.buttonText}>
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={s.footer}>
+          By signing in you agree to our Terms of Service and Privacy Policy.
         </Text>
-      </Pressable>
-
-      <Text style={{ color: '#aaa', fontSize: 12 }}>
-        Enter your email and password to sign in.
-      </Text>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg },
+  inner: { flex: 1, padding: spacing.xxl, justifyContent: 'center' },
+
+  top: { alignItems: 'center', marginBottom: 48 },
+  brand: {
+    color: colors.white,
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -1,
+    marginBottom: spacing.sm,
+  },
+  tagline: { color: colors.textSecondary, fontSize: font.md },
+
+  form: { gap: spacing.md },
+  input: {
+    backgroundColor: colors.card,
+    color: colors.white,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 16,
+    fontSize: font.md,
+  },
+  button: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  buttonDisabled: { opacity: 0.4 },
+  buttonText: { color: colors.bg, fontSize: font.md, fontWeight: '700' },
+
+  footer: {
+    color: colors.textMuted,
+    fontSize: font.xs,
+    textAlign: 'center',
+    marginTop: spacing.xxxl,
+    lineHeight: 16,
+  },
+});
