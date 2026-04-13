@@ -169,7 +169,7 @@ export async function uploadSnapshot(
   const userId = await getSessionUserId();
   if (!userId) return false;
 
-  const { error } = await supabase.from('device_snapshots').insert({
+  const row: Record<string, unknown> = {
     user_id: userId,
     device_id: deviceId,
     battery_level: snapshot.batteryLevel,
@@ -178,11 +178,32 @@ export async function uploadSnapshot(
     screen_width: Math.round(snapshot.screenWidth),
     screen_height: Math.round(snapshot.screenHeight),
     collected_at: snapshot.timestamp,
-  });
+  };
 
-  if (error) {
-    console.warn('uploadSnapshot error:', error.message);
-    return false;
+  if (snapshot.locationData !== null) {
+    row.location_data = snapshot.locationData;
+  }
+  if (snapshot.appUsageData !== null) {
+    row.app_usage_data = snapshot.appUsageData;
+  }
+
+  let result = await supabase.from('device_snapshots').insert(row);
+  if (result.error) {
+    console.warn('uploadSnapshot error:', result.error.message);
+    const fallback = await supabase.from('device_snapshots').insert({
+      user_id: userId,
+      device_id: deviceId,
+      battery_level: snapshot.batteryLevel,
+      is_charging: snapshot.isCharging,
+      network_type: snapshot.networkType,
+      screen_width: Math.round(snapshot.screenWidth),
+      screen_height: Math.round(snapshot.screenHeight),
+      collected_at: snapshot.timestamp,
+    });
+    if (fallback.error) {
+      console.warn('uploadSnapshot fallback error:', fallback.error.message);
+      return false;
+    }
   }
   return true;
 }
@@ -307,7 +328,7 @@ export async function syncAll(consent: ConsentPreferences): Promise<{
   const deviceId = await registerDevice();
   if (!deviceId) return { deviceRegistered: false, snapshotUploaded: false };
 
-  const snapshot = await collectSnapshot();
+  const snapshot = await collectSnapshot(consent);
   const uploaded = await uploadSnapshot(deviceId, snapshot);
 
   return { deviceRegistered: true, snapshotUploaded: uploaded };
