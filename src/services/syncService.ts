@@ -145,8 +145,8 @@ export async function uploadSnapshot(
     battery_level: snapshot.batteryLevel,
     is_charging: snapshot.isCharging,
     network_type: snapshot.networkType,
-    screen_width: snapshot.screenWidth,
-    screen_height: snapshot.screenHeight,
+    screen_width: Math.round(snapshot.screenWidth),
+    screen_height: Math.round(snapshot.screenHeight),
     collected_at: snapshot.timestamp,
   });
 
