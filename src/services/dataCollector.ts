@@ -13,12 +13,17 @@ export async function collectDeviceData() {
     osVersion: Device.osVersion,
     brand: Device.brand,
     model: Device.modelName,
-    deviceType: Device.deviceType,
+    deviceName: Device.deviceName,
+    deviceType: String(Device.deviceType),
     totalMemory: Device.totalMemory,
-    installTime: Device.installTime,
     networkType: network.type,
+    isConnected: network.isConnected,
     isInternetReachable: network.isInternetReachable,
-    screen: { width, height },
+    screen: {
+      width,
+      height,
+      scale: Dimensions.get('window').scale,
+    },
     collectedAt: new Date().toISOString(),
   };
 }

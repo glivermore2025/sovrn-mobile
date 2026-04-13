@@ -1,6 +1,6 @@
 import { View, Text, Switch, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useDataContext } from '../src/context/DataContext';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { colors, spacing, radius, font } from '../src/theme';
 
 export default function SettingsScreen() {
@@ -8,10 +8,16 @@ export default function SettingsScreen() {
   const [draft, setDraft] = useState(consent);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    setDraft(consent);
+  }, [consent]);
+
   const dirty =
     draft.deviceInfo !== consent.deviceInfo ||
     draft.demographics !== consent.demographics ||
-    draft.usageTelemetry !== consent.usageTelemetry;
+    draft.usageTelemetry !== consent.usageTelemetry ||
+    draft.locationData !== consent.locationData ||
+    draft.appUsage !== consent.appUsage;
 
   async function handleSave() {
     setSaving(true);
@@ -34,23 +40,30 @@ export default function SettingsScreen() {
       <View style={s.card}>
         <ConsentToggle
           title="Device Info"
-          description="Model, OS, screen size, battery"
+          description="Model, OS, screen size, battery, device memory"
           value={draft.deviceInfo}
           onToggle={(v) => setDraft({ ...draft, deviceInfo: v })}
         />
         <View style={s.divider} />
         <ConsentToggle
-          title="Demographics"
-          description="Age, industry, region, household"
-          value={draft.demographics}
-          onToggle={(v) => setDraft({ ...draft, demographics: v })}
+          title="Usage Telemetry"
+          description="Network, charging patterns, performance"
+          value={draft.usageTelemetry}
+          onToggle={(v) => setDraft({ ...draft, usageTelemetry: v })}
         />
         <View style={s.divider} />
         <ConsentToggle
-          title="Usage Telemetry"
-          description="Network type, charging patterns"
-          value={draft.usageTelemetry}
-          onToggle={(v) => setDraft({ ...draft, usageTelemetry: v })}
+          title="Location Data"
+          description="City/state or nearby location when allowed"
+          value={draft.locationData}
+          onToggle={(v) => setDraft({ ...draft, locationData: v })}
+        />
+        <View style={s.divider} />
+        <ConsentToggle
+          title="App Usage"
+          description="Daily app counts and session patterns when permitted"
+          value={draft.appUsage}
+          onToggle={(v) => setDraft({ ...draft, appUsage: v })}
           last
         />
       </View>

@@ -9,10 +9,15 @@ export type DeviceSnapshot = {
   modelName: string | null;
   osName: string | null;
   osVersion: string | null;
+  brand: string | null;
+  deviceType: string | null;
+  totalMemory: number | null;
   batteryLevel: number | null;
   isCharging: boolean | null;
   lowPowerMode: boolean | null;
   networkType: string | null;
+  isConnected: boolean | null;
+  isInternetReachable: boolean | null;
   screenWidth: number;
   screenHeight: number;
   timestamp: string;
@@ -30,6 +35,8 @@ export type ConsentPreferences = {
   deviceInfo: boolean;
   demographics: boolean;
   usageTelemetry: boolean;
+  locationData: boolean;
+  appUsage: boolean;
 };
 
 export const EMPTY_DEMOGRAPHICS: Demographics = {
@@ -44,6 +51,8 @@ export const DEFAULT_CONSENT: ConsentPreferences = {
   deviceInfo: false,
   demographics: false,
   usageTelemetry: false,
+  locationData: false,
+  appUsage: false,
 };
 
 async function getSessionUserId(): Promise<string | null> {
@@ -71,19 +80,28 @@ export async function collectSnapshot(): Promise<DeviceSnapshot> {
   } catch {}
 
   let networkType: string | null = null;
+  let isConnected: boolean | null = null;
+  let isInternetReachable: boolean | null = null;
   try {
     const net = await Network.getNetworkStateAsync();
     networkType = net?.type ?? null;
+    isConnected = net?.isConnected ?? null;
+    isInternetReachable = net?.isInternetReachable ?? null;
   } catch {}
 
   return {
     modelName: Device.modelName ?? null,
     osName: Device.osName ?? null,
     osVersion: Device.osVersion ?? null,
+    brand: Device.brand ?? null,
+    deviceType: Device.deviceType != null ? String(Device.deviceType) : null,
+    totalMemory: Device.totalMemory ?? null,
     batteryLevel: batteryLevel ?? null,
     isCharging,
     lowPowerMode,
     networkType: networkType != null ? String(networkType) : null,
+    isConnected,
+    isInternetReachable,
     screenWidth: width,
     screenHeight: height,
     timestamp: new Date().toISOString(),
@@ -207,17 +225,35 @@ export async function saveConsent(
   const userId = await getSessionUserId();
   if (!userId) return false;
 
-  const { error } = await supabase.from('consent_preferences').upsert({
+  const row: Record<string, unknown> = {
     user_id: userId,
     device_info: consent.deviceInfo,
     demographics: consent.demographics,
     usage_telemetry: consent.usageTelemetry,
     updated_at: new Date().toISOString(),
-  });
+  };
 
-  if (error) {
-    console.warn('saveConsent error:', error.message);
-    return false;
+  if (consent.locationData !== undefined) {
+    row.location_data = consent.locationData;
+  }
+  if (consent.appUsage !== undefined) {
+    row.app_usage = consent.appUsage;
+  }
+
+  let result = await supabase.from('consent_preferences').upsert(row);
+  if (result.error) {
+    console.warn('saveConsent error:', result.error.message);
+    const fallback = await supabase.from('consent_preferences').upsert({
+      user_id: userId,
+      device_info: consent.deviceInfo,
+      demographics: consent.demographics,
+      usage_telemetry: consent.usageTelemetry,
+      updated_at: new Date().toISOString(),
+    });
+    if (fallback.error) {
+      console.warn('saveConsent fallback error:', fallback.error.message);
+      return false;
+    }
   }
   return true;
 }
@@ -238,13 +274,24 @@ export async function loadConsent(): Promise<ConsentPreferences | null> {
     deviceInfo: data.device_info ?? false,
     demographics: data.demographics ?? false,
     usageTelemetry: data.usage_telemetry ?? false,
+    locationData: data.location_data ?? false,
+    appUsage: data.app_usage ?? false,
   };
 }
 
-export async function syncAll(): Promise<{
+export async function syncAll(consent: ConsentPreferences): Promise<{
   deviceRegistered: boolean;
   snapshotUploaded: boolean;
 }> {
+  if (
+    !consent.deviceInfo &&
+    !consent.usageTelemetry &&
+    !consent.locationData &&
+    !consent.appUsage
+  ) {
+    return { deviceRegistered: false, snapshotUploaded: false };
+  }
+
   const deviceId = await registerDevice();
   if (!deviceId) return { deviceRegistered: false, snapshotUploaded: false };
 

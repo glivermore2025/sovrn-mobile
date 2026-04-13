@@ -51,7 +51,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
 
-  const contributing = consent.deviceInfo || consent.demographics || consent.usageTelemetry;
+  const contributing =
+    consent.deviceInfo ||
+    consent.demographics ||
+    consent.usageTelemetry ||
+    consent.locationData ||
+    consent.appUsage;
 
   useEffect(() => {
     (async () => {
@@ -105,7 +110,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const syncNow = useCallback(async () => {
     setSyncing(true);
     try {
-      const result = await syncAll();
+      const result = await syncAll(consent);
       if (result.snapshotUploaded) {
         setLastSyncedAt(new Date().toISOString());
         const snap = await collectSnapshot();
@@ -115,7 +120,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } finally {
       setSyncing(false);
     }
-  }, []);
+  }, [consent]);
 
   const value: DataContextValue = {
     snapshot,
