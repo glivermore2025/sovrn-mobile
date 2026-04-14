@@ -34,21 +34,41 @@ export type AppUsageData = {
   platform: string;
 };
 
-async function loadModule<T = any>(moduleId: string): Promise<T | null> {
+async function loadExpoLocation(): Promise<any | null> {
   try {
-    const module = await import(moduleId);
+    const module = await import('expo-location');
     return module?.default ?? module;
   } catch (error) {
-    console.warn(`loadModule failed for ${moduleId}:`, error);
+    console.warn('loadExpoLocation failed:', error);
+    return null;
+  }
+}
+
+async function loadExpoLocationBuild(): Promise<any | null> {
+  try {
+    const module = await import('expo-location/build/Location');
+    return module?.default ?? module;
+  } catch (error) {
+    console.warn('loadExpoLocationBuild failed:', error);
+    return null;
+  }
+}
+
+async function loadUsageStats(): Promise<any | null> {
+  try {
+    const module = await import('react-native-usage-stats');
+    return module?.default ?? module;
+  } catch (error) {
+    console.warn('loadUsageStats failed:', error);
     return null;
   }
 }
 
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
-    let Location: any = await loadModule('expo-location');
+    let Location: any = await loadExpoLocation();
     if (!Location) {
-      Location = await loadModule('expo-location/build/Location');
+      Location = await loadExpoLocationBuild();
     }
     if (!Location || typeof Location.requestForegroundPermissionsAsync !== 'function') {
       console.warn('collectLocationData warning: expo-location unavailable.');
@@ -92,7 +112,7 @@ export async function collectAppUsageData(): Promise<AppUsageData | null> {
   }
 
   try {
-    const UsageStats = await loadModule('react-native-usage-stats');
+    const UsageStats = await loadUsageStats();
     if (!UsageStats || typeof UsageStats.checkPermission !== 'function') {
       return null;
     }
