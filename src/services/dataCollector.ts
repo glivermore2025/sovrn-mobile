@@ -34,9 +34,27 @@ export type AppUsageData = {
   platform: string;
 };
 
+function requireModule(moduleId: string) {
+  try {
+    const module = require(moduleId);
+    return module?.default ?? module;
+  } catch (error) {
+    console.warn(`requireModule failed for ${moduleId}:`, error);
+    return null;
+  }
+}
+
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
-    const Location = require('expo-location');
+    let Location: any = requireModule('expo-location');
+    if (!Location) {
+      Location = requireModule('expo-location/build/Location');
+    }
+    if (!Location || typeof Location.requestForegroundPermissionsAsync !== 'function') {
+      console.warn('collectLocationData warning: expo-location unavailable.');
+      return null;
+    }
+
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return null;
 
@@ -74,7 +92,7 @@ export async function collectAppUsageData(): Promise<AppUsageData | null> {
   }
 
   try {
-    const UsageStats = require('react-native-usage-stats')?.default ?? require('react-native-usage-stats');
+    const UsageStats = requireModule('react-native-usage-stats');
     if (!UsageStats || typeof UsageStats.checkPermission !== 'function') {
       return null;
     }
