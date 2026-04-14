@@ -1,7 +1,6 @@
 // src/services/dataCollector.ts
 
 import * as Device from 'expo-device';
-import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 import { Dimensions, Platform } from 'react-native';
 
@@ -47,6 +46,15 @@ async function loadUsageStats(): Promise<any | null> {
 
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
+    let Location: any = null;
+
+    try {
+      const module = await import('expo-location');
+      Location = module?.default ?? module;
+    } catch (error) {
+      console.warn('collectLocationData import failed:', error);
+    }
+
     if (!Location || typeof Location.requestForegroundPermissionsAsync !== 'function') {
       console.warn('collectLocationData warning: expo-location unavailable.');
       return null;
