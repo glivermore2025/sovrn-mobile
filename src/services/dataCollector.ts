@@ -1,7 +1,6 @@
 // src/services/dataCollector.ts
 
 import * as Device from 'expo-device';
-import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 import { Dimensions, Platform } from 'react-native';
 
@@ -37,10 +36,13 @@ export type AppUsageData = {
 
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
+    const Location = require('expo-location');
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return null;
 
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
     const geocoded = await Location.reverseGeocodeAsync({
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,

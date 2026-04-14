@@ -4,7 +4,7 @@ import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
 import { Dimensions, Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { collectLocationData, collectAppUsageData, LocationData, AppUsageData } from './dataCollector';
+import type { LocationData, AppUsageData } from './dataCollector';
 
 export type DeviceSnapshot = {
   modelName: string | null;
@@ -94,9 +94,14 @@ export async function collectSnapshot(
     isInternetReachable = net?.isInternetReachable ?? null;
   } catch {}
 
+  const dataCollector = await import('./dataCollector').catch((error) => {
+    console.warn('Failed to load data collector module:', error);
+    return null;
+  });
+
   const [locationData, appUsageData] = await Promise.all([
-    consent.locationData ? collectLocationData() : Promise.resolve(null),
-    consent.appUsage ? collectAppUsageData() : Promise.resolve(null),
+    consent.locationData && dataCollector ? dataCollector.collectLocationData() : Promise.resolve(null),
+    consent.appUsage && dataCollector ? dataCollector.collectAppUsageData() : Promise.resolve(null),
   ]);
 
   return {
