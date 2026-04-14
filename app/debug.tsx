@@ -1,3 +1,5 @@
 // app/debug.tsx
 
-export { default } from '../src/screens/DataDebug';
+import DataDebug from '../src/screens/DataDebug';
+
+export default DataDebug;

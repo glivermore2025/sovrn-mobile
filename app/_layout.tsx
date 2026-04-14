@@ -1,4 +1,4 @@
-import { Stack, Tabs, useRouter, useSegments } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect } from 'react';
