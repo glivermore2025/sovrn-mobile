@@ -1,7 +1,7 @@
 
 // src/screens/DataDebug.tsx
 
-import { View, Text, ScrollView, Button } from 'react-native';
+import { View, Text, ScrollView, Button, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import { collectDeviceData } from '../services/dataCollector';
 
@@ -14,13 +14,13 @@ export default function DataDebug() {
   };
 
   return (
-    <ScrollView className="bg-black p-6 min-h-screen text-white">
-      <Text className="text-2xl font-bold mb-4">Device Data Collector</Text>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Device Data Collector</Text>
       <Button title="Collect Device Info" onPress={handleCollect} />
       {data && (
-        <View className="mt-4 space-y-2">
+        <View style={styles.results}>
           {Object.entries(data).map(([key, value]) => (
-            <Text key={key} className="text-sm text-white">
+            <Text key={key} style={styles.resultText}>
               {key}: {typeof value === 'object' ? JSON.stringify(value) : String(value)}
             </Text>
           ))}
@@ -29,3 +29,27 @@ export default function DataDebug() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  container: {
+    padding: 24,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  results: {
+    marginTop: 16,
+  },
+  resultText: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+});
