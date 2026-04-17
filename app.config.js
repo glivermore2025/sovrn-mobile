@@ -40,6 +40,7 @@ module.exports = {
     // during `expo start`. Reintroduce `router` only with a full URL value.
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_KEY || '',
+    purchaseServerUrl: process.env.EXPO_PUBLIC_PURCHASE_SERVER_URL || '',
   },
 
   ios: {

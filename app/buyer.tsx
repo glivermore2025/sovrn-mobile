@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import { supabase } from '../src/lib/supabase';
+import { createCheckoutSession, BuyerFilterPayload } from '../src/lib/purchaseFlow';
 import { colors, spacing, radius, font } from '../src/theme';
 
 const platformOptions = ['ios', 'android'];
@@ -26,6 +28,7 @@ export default function BuyerPreviewScreen() {
   const [rows, setRows] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
 
   const [dateFrom, setDateFrom] = useState('2026-04-01');
   const [dateTo, setDateTo] = useState(today);
@@ -101,6 +104,34 @@ export default function BuyerPreviewScreen() {
       fetchPreview();
     }
   }, [session, filters]);
+
+  const onPurchasePress = async () => {
+    setPurchasing(true);
+    setError(null);
+
+    const payload: BuyerFilterPayload = {
+      dataset: 'connectivity',
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      platforms: filters.platforms,
+      carriers: filters.carriers,
+      networkTypes: filters.networkTypes,
+      uptimeMin: filters.uptimeMin,
+      uptimeMax: filters.uptimeMax,
+      disconnectMin: filters.disconnectMin,
+      disconnectMax: filters.disconnectMax,
+      totalCount,
+    };
+
+    try {
+      const checkoutUrl = await createCheckoutSession(payload);
+      await WebBrowser.openBrowserAsync(checkoutUrl);
+    } catch (err: any) {
+      setError(err?.message ?? 'Unable to start checkout.');
+    } finally {
+      setPurchasing(false);
+    }
+  };
 
   const toggleValue = (value: string, values: string[], setter: (state: string[]) => void) => {
     const next = values.includes(value)
@@ -268,11 +299,18 @@ export default function BuyerPreviewScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={s.purchaseButton} disabled>
-        <Text style={s.purchaseText}>Purchase Dataset</Text>
+      <TouchableOpacity
+        style={[s.purchaseButton, purchasing && s.buttonDisabled]}
+        onPress={onPurchasePress}
+        disabled={purchasing}
+        activeOpacity={0.7}
+      >
+        <Text style={s.purchaseText}>
+          {purchasing ? 'Starting checkout...' : `Purchase Dataset (${totalCount} rows)`}
+        </Text>
       </TouchableOpacity>
       <Text style={s.helpText}>
-        Purchase flow is not implemented in this mobile preview. The dataset preview and filter UI are available.
+        Purchase opens Stripe checkout for this dataset slice. The backend server must be configured with a purchase endpoint.
       </Text>
     </ScrollView>
   );
@@ -348,6 +386,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xl,
   },
+  buttonDisabled: { opacity: 0.5 },
   purchaseText: { color: colors.white, fontSize: font.md, fontWeight: '700' },
   helpText: { color: colors.textSecondary, fontSize: font.sm, marginTop: spacing.sm },
 });

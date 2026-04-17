@@ -178,7 +178,27 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-## 5. Export generation pattern
+## 5. Temporary Stripe purchase flow
+
+For MVP, the buyer page can open a Stripe checkout session from a small temporary server.
+
+### App-side purchase flow
+
+- The mobile app sends the current buyer filters to a purchase API.
+- The API creates a Stripe checkout session and returns the checkout URL.
+- The app opens the Stripe checkout page in a browser.
+
+### Temporary local server
+
+Create a small purchase server to expose `/create-checkout-session`:
+
+- `STRIPE_SECRET_KEY` for Stripe
+- `CHECKOUT_SUCCESS_URL` to redirect buyers after payment
+- `CHECKOUT_CANCEL_URL` to return buyers if they cancel
+
+The app can point to this URL using `EXPO_PUBLIC_PURCHASE_SERVER_URL`.
+
+### Export generation pattern
 
 The purchase flow should:
 
