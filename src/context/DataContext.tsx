@@ -4,8 +4,11 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import * as Network from 'expo-network';
 import {
   collectSnapshot,
   registerDevice,
@@ -17,7 +20,11 @@ import {
   syncAll,
   EMPTY_DEMOGRAPHICS,
   DEFAULT_CONSENT,
+  getDeviceInstallId,
+  getSessionUserId,
 } from '../services/syncService';
+import { getDeviceModulePermissions, ModulePermission } from '../lib/permissions';
+import { ingestConnectivityEvent } from '../lib/ingestConnectivityEvent';
 import type {
   DeviceSnapshot,
   Demographics,
@@ -50,6 +57,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [modulePermissions, setModulePermissions] = useState<Record<string, ModulePermission>>({});
+  const appState = useRef(AppState.currentState);
+  const deviceInstallId = getDeviceInstallId();
 
   const contributing =
     consent.deviceInfo ||
@@ -58,7 +68,62 @@ export function DataProvider({ children }: { children: ReactNode }) {
     consent.locationData ||
     consent.appUsage;
 
+  const refreshModulePermissions = useCallback(
+    async (userId: string) => {
+      const permissions = await getDeviceModulePermissions(userId, deviceInstallId);
+      setModulePermissions(permissions);
+      return permissions;
+    },
+    [deviceInstallId],
+  );
+
+  const collectConnectivitySnapshot = useCallback(
+    async (
+      userId: string,
+      permission: ModulePermission | null,
+      eventType: 'snapshot' | 'transition' = 'snapshot',
+    ) => {
+      if (!permission?.can_collect) return;
+
+      try {
+        const state = await Network.getNetworkStateAsync();
+        const payload = {
+          network_type: state.type ? String(state.type).toLowerCase() : null,
+          is_connected: state.isConnected ?? null,
+          is_internet_reachable: state.isInternetReachable ?? null,
+          carrier: (state as any)?.carrier ?? null,
+          event_type: eventType,
+        };
+
+        await ingestConnectivityEvent({
+          userId,
+          deviceInstallId,
+          permission,
+          payload,
+        });
+      } catch (err) {
+        console.warn('connectivity event capture failed:', err);
+      }
+    },
+    [deviceInstallId],
+  );
+
   useEffect(() => {
+    const sendConnectivitySnapshot = async (eventType: 'snapshot' | 'transition') => {
+      const userId = await getSessionUserId();
+      if (!userId) return;
+
+      const permissions =
+        modulePermissions.connectivity ??
+        (await refreshModulePermissions(userId));
+
+      await collectConnectivitySnapshot(
+        userId,
+        permissions.connectivity ?? null,
+        eventType,
+      );
+    };
+
     (async () => {
       try {
         const snap = await collectSnapshot(consent);
@@ -81,8 +146,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const id = await registerDevice();
         if (id) setDeviceId(id);
       } catch {}
+
+      try {
+        const userId = await getSessionUserId();
+        if (userId) {
+          const permissions = await refreshModulePermissions(userId);
+          await collectConnectivitySnapshot(
+            userId,
+            permissions.connectivity ?? null,
+            'snapshot',
+          );
+        }
+      } catch (err) {
+        console.warn('Failed to initialize connectivity permissions:', err);
+      }
     })();
-  }, []);
+
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        await sendConnectivitySnapshot('snapshot');
+      }
+      appState.current = nextAppState;
+    };
+
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
+
+    const networkSubscription = Network.addNetworkStateListener(async () => {
+      await sendConnectivitySnapshot('snapshot');
+    });
+
+    return () => {
+      appStateSubscription.remove();
+      networkSubscription.remove?.();
+    };
+  }, [collectConnectivitySnapshot, consent, modulePermissions.connectivity, refreshModulePermissions]);
 
   const refreshSnapshot = useCallback(async () => {
     const snap = await collectSnapshot(consent);

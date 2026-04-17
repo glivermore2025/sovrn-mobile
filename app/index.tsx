@@ -89,6 +89,14 @@ export default function IndexScreen() {
         <Text style={s.syncButtonText}>{syncing ? 'Syncing...' : 'Sync Now'}</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={s.previewButton}
+        onPress={() => router.push('/buyer')}
+        activeOpacity={0.7}
+      >
+        <Text style={s.previewButtonText}>Buyer Preview</Text>
+      </TouchableOpacity>
+
       {lastSyncedAt && (
         <Text style={s.syncNote}>
           Last synced {new Date(lastSyncedAt).toLocaleString()}
@@ -207,8 +215,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  previewButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   buttonDisabled: { opacity: 0.4 },
   syncButtonText: { color: colors.white, fontSize: font.md, fontWeight: '600' },
+  previewButtonText: { color: colors.bg, fontSize: font.md, fontWeight: '600' },
 
   syncNote: {
     color: colors.textMuted,

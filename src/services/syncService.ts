@@ -58,9 +58,15 @@ export const DEFAULT_CONSENT: ConsentPreferences = {
   appUsage: false,
 };
 
-async function getSessionUserId(): Promise<string | null> {
+export async function getSessionUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   return data.session?.user?.id ?? null;
+}
+
+export function getDeviceInstallId(): string {
+  return (
+    Constants.installationId ?? `${Platform.OS}-${Device.modelName ?? 'unknown'}`
+  );
 }
 
 export async function collectSnapshot(
@@ -129,9 +135,7 @@ export async function registerDevice(): Promise<string | null> {
   const userId = await getSessionUserId();
   if (!userId) return null;
 
-  const installId =
-    Constants.installationId ??
-    `${Platform.OS}-${Device.modelName ?? 'unknown'}`;
+  const installId = getDeviceInstallId();
 
   const row = {
     user_id: userId,
