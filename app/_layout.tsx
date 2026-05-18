@@ -11,11 +11,13 @@ import { supabase } from '../src/lib/supabase';
 import { colors } from '../src/theme';
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
+  // Unicode icons for demonstration; replace with vector icons if desired
   const icons: Record<string, string> = {
     index: '◉',
-    'my-data': '◫',
+    'my-data': '🗄️', // DB table icon
     settings: '⚙',
-    profile: '○',
+    profile: '👤', // Headshot icon
+    buyer: '🏬', // Store icon
   };
   return (
     <View style={tabStyles.iconWrap}>
@@ -54,28 +56,35 @@ function AppTabs() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => <TabIcon name="index" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="index" focused={focused} />, 
         }}
       />
       <Tabs.Screen
         name="my-data"
         options={{
           title: 'My Data',
-          tabBarIcon: ({ focused }) => <TabIcon name="my-data" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="my-data" focused={focused} />, 
+        }}
+      />
+      <Tabs.Screen
+        name="buyer"
+        options={{
+          title: 'Buyer',
+          tabBarIcon: ({ focused }) => <TabIcon name="buyer" focused={focused} />, 
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="settings" focused={focused} />, 
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => <TabIcon name="profile" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="profile" focused={focused} />, 
         }}
       />
       <Tabs.Screen name="login" options={{ href: null }} />
