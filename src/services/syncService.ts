@@ -5,6 +5,15 @@ import * as Network from 'expo-network';
 import { Dimensions, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import type { LocationData, AppUsageData } from './dataCollector';
+import { getDeviceModulePermissions } from '../lib/permissions';
+import { ingestDeviceEvent } from '../lib/ingestDeviceEvent';
+import {
+  collectDeviceHealthPayload,
+  collectLocationCoarsePayload,
+  collectActivityRhythmPayload,
+  createDemographicsPayload,
+} from '../lib/eventCollectors';
+import type { SyncResult } from '../types/dataModules';
 
 export type DeviceSnapshot = {
   modelName: string | null;
@@ -175,6 +184,8 @@ export async function uploadSnapshot(
   deviceId: string,
   snapshot: DeviceSnapshot,
 ): Promise<boolean> {
+  // LEGACY: This function is deprecated. Use syncAll() instead for marketplace ingestion.
+  // Only kept for backwards compatibility with older code paths.
   const userId = await getSessionUserId();
   if (!userId) return false;
 
@@ -321,24 +332,167 @@ export async function loadConsent(): Promise<ConsentPreferences | null> {
   };
 }
 
-export async function syncAll(consent: ConsentPreferences): Promise<{
-  deviceRegistered: boolean;
-  snapshotUploaded: boolean;
-}> {
-  if (
-    !consent.deviceInfo &&
-    !consent.usageTelemetry &&
-    !consent.locationData &&
-    !consent.appUsage
-  ) {
-    return { deviceRegistered: false, snapshotUploaded: false };
+/**
+ * NEW: Module-based synchronization for marketplace data ingestion.
+ * This is the canonical sync path for device_events.
+ *
+ * Process:
+ * 1. Get current user
+ * 2. Register device in user_devices
+ * 3. Load module permissions from user_module_permissions
+ * 4. Collect and ingest module events only for modules with can_collect=true
+ * 5. Return detailed sync result with per-module status
+ */
+export async function syncAll(consent: ConsentPreferences): Promise<SyncResult> {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return { deviceRegistered: false, events: {} };
   }
 
   const deviceId = await registerDevice();
-  if (!deviceId) return { deviceRegistered: false, snapshotUploaded: false };
+  if (!deviceId) {
+    return { deviceRegistered: false, events: {} };
+  }
 
-  const snapshot = await collectSnapshot(consent);
-  const uploaded = await uploadSnapshot(deviceId, snapshot);
+  const deviceInstallId = getDeviceInstallId();
+  const permissions = await getDeviceModulePermissions(userId, deviceInstallId);
 
-  return { deviceRegistered: true, snapshotUploaded: uploaded };
+  const result: SyncResult = {
+    deviceRegistered: true,
+    events: {},
+  };
+
+  // Collect connectivity event
+  if (permissions.connectivity) {
+    try {
+      const state = await Network.getNetworkStateAsync();
+      const payload = {
+        network_type: state.type ? String(state.type).toLowerCase() : null,
+        is_connected: state.isConnected ?? null,
+        is_internet_reachable: state.isInternetReachable ?? null,
+        carrier: (state as any)?.carrier ?? null,
+        event_type: 'snapshot' as const,
+        app_collected_at: new Date().toISOString(),
+        platform: Platform.OS,
+      };
+
+      const success = await ingestDeviceEvent({
+        userId,
+        deviceInstallId,
+        moduleKey: 'connectivity',
+        permission: permissions.connectivity,
+        payload,
+      });
+
+      result.events.connectivity = success;
+    } catch (err) {
+      console.warn('syncAll connectivity collection failed:', err);
+      result.events.connectivity = false;
+    }
+  }
+
+  // Collect device_health event
+  if (permissions.device_health) {
+    try {
+      const payload = await collectDeviceHealthPayload();
+      const success = await ingestDeviceEvent({
+        userId,
+        deviceInstallId,
+        moduleKey: 'device_health',
+        permission: permissions.device_health,
+        payload,
+      });
+      result.events.device_health = success;
+    } catch (err) {
+      console.warn('syncAll device_health collection failed:', err);
+      result.events.device_health = false;
+    }
+  }
+
+  // Collect location_coarse event
+  if (permissions.location_coarse) {
+    try {
+      const payload = await collectLocationCoarsePayload();
+      if (payload) {
+        const success = await ingestDeviceEvent({
+          userId,
+          deviceInstallId,
+          moduleKey: 'location_coarse',
+          permission: permissions.location_coarse,
+          payload,
+        });
+        result.events.location_coarse = success;
+      }
+    } catch (err) {
+      console.warn('syncAll location_coarse collection failed:', err);
+      result.events.location_coarse = false;
+    }
+  }
+
+  // Collect activity_rhythm event
+  if (permissions.activity_rhythm) {
+    try {
+      const payload = await collectActivityRhythmPayload();
+      if (payload) {
+        const success = await ingestDeviceEvent({
+          userId,
+          deviceInstallId,
+          moduleKey: 'activity_rhythm',
+          permission: permissions.activity_rhythm,
+          payload,
+        });
+        result.events.activity_rhythm = success;
+      }
+    } catch (err) {
+      console.warn('syncAll activity_rhythm collection failed:', err);
+      result.events.activity_rhythm = false;
+    }
+  }
+
+  // Note: Demographics is handled separately via saveDemographicsWithEvent()
+  // not as part of the general sync
+
+  return result;
+}
+
+/**
+ * Save demographics to both legacy table and device_events (if permitted).
+ * Call this when user saves demographics from settings.
+ */
+export async function saveDemographicsWithEvent(
+  demographics: Demographics,
+): Promise<boolean> {
+  const userId = await getSessionUserId();
+  if (!userId) return false;
+
+  // Always save to legacy table for compatibility
+  const legacySaveSuccess = await saveDemographics(demographics);
+
+  // Also ingest as device_events if permitted
+  try {
+    const deviceInstallId = getDeviceInstallId();
+    const permissions = await getDeviceModulePermissions(userId, deviceInstallId);
+
+    if (permissions.demographics) {
+      const payload = createDemographicsPayload(
+        demographics.ageRange,
+        demographics.industry,
+        demographics.region,
+        demographics.householdSize,
+        demographics.devicesOwned,
+      );
+
+      await ingestDeviceEvent({
+        userId,
+        deviceInstallId,
+        moduleKey: 'demographics',
+        permission: permissions.demographics,
+        payload,
+      });
+    }
+  } catch (err) {
+    console.warn('saveDemographicsWithEvent device_events insert failed:', err);
+  }
+
+  return legacySaveSuccess;
 }

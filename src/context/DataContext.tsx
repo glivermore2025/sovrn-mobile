@@ -7,14 +7,14 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import * as Network from 'expo-network';
 import {
   collectSnapshot,
   registerDevice,
   uploadSnapshot,
   loadDemographics,
-  saveDemographics as saveDemographicsRemote,
+  saveDemographicsWithEvent,
   loadConsent,
   saveConsent as saveConsentRemote,
   syncAll,
@@ -30,6 +30,7 @@ import type {
   Demographics,
   ConsentPreferences,
 } from '../services/syncService';
+import type { SyncResult } from '../types/dataModules';
 
 type DataContextValue = {
   snapshot: DeviceSnapshot | null;
@@ -93,6 +94,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           is_internet_reachable: state.isInternetReachable ?? null,
           carrier: (state as any)?.carrier ?? null,
           event_type: eventType,
+          app_collected_at: new Date().toISOString(),
+          platform: Platform.OS,
         };
 
         await ingestConnectivityEvent({
@@ -113,13 +116,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const userId = await getSessionUserId();
       if (!userId) return;
 
-      const permissions =
-        modulePermissions.connectivity ??
-        (await refreshModulePermissions(userId));
+      let perms = modulePermissions;
+      if (!perms['connectivity']) {
+        perms = await refreshModulePermissions(userId);
+      }
 
       await collectConnectivitySnapshot(
         userId,
-        permissions.connectivity ?? null,
+        perms['connectivity'] ?? null,
         eventType,
       );
     };
@@ -153,7 +157,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const permissions = await refreshModulePermissions(userId);
           await collectConnectivitySnapshot(
             userId,
-            permissions.connectivity ?? null,
+            permissions['connectivity'] ?? null,
             'snapshot',
           );
         }
@@ -182,7 +186,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       appStateSubscription.remove();
       networkSubscription.remove?.();
     };
-  }, [collectConnectivitySnapshot, consent, modulePermissions.connectivity, refreshModulePermissions]);
+  }, [collectConnectivitySnapshot, consent, refreshModulePermissions]);
 
   const refreshSnapshot = useCallback(async () => {
     const snap = await collectSnapshot(consent);
@@ -195,7 +199,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const persistDemographics = useCallback(async (d: Demographics) => {
     setDemographicsState(d);
-    return saveDemographicsRemote(d);
+    return saveDemographicsWithEvent(d);
   }, []);
 
   const setConsent = useCallback((c: ConsentPreferences) => {
@@ -210,13 +214,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const syncNow = useCallback(async () => {
     setSyncing(true);
     try {
-      const result = await syncAll(consent);
-      if (result.snapshotUploaded) {
+      const result: SyncResult = await syncAll(consent);
+      // Check if at least one module event was inserted
+      const hasModuleEvents = Object.values(result.events).some((v) => v === true);
+      if (hasModuleEvents) {
         setLastSyncedAt(new Date().toISOString());
         const snap = await collectSnapshot();
         setSnapshot(snap);
       }
-      return result.snapshotUploaded;
+      return hasModuleEvents;
     } finally {
       setSyncing(false);
     }

@@ -1,38 +1,35 @@
-import { supabase } from './supabase';
+/**
+ * Connectivity event ingestion.
+ * Wrapper around generic ingestDeviceEvent for module_key='connectivity'.
+ * Captures network state changes and snapshots.
+ */
 
-type ConnectivityPayload = {
-  network_type: string | null;
-  is_connected: boolean | null;
-  is_internet_reachable: boolean | null;
-  carrier: string | null;
-  event_type: 'snapshot' | 'transition';
-};
+import { ingestDeviceEvent } from './ingestDeviceEvent';
+import type { ModulePermission, ConnectivityEventPayload } from '../types/dataModules';
+import { Platform } from 'react-native';
 
 export async function ingestConnectivityEvent(params: {
   userId: string;
   deviceInstallId: string;
-  permission:
-    | {
-        can_collect: boolean;
-        can_sell: boolean;
-        consent_version: string;
-      }
-    | null;
-  payload: ConnectivityPayload;
-}) {
+  permission: ModulePermission | null | undefined;
+  payload: ConnectivityEventPayload;
+}): Promise<boolean> {
   const { userId, deviceInstallId, permission, payload } = params;
 
-  if (!permission?.can_collect) return;
-
-  const { error } = await supabase.from('device_events').insert({
-    user_id: userId,
-    device_install_id: deviceInstallId,
-    module_key: 'connectivity',
-    captured_at: new Date().toISOString(),
-    payload_json: payload,
-    consent_version: permission.consent_version,
-    can_sell_snapshot: permission.can_sell,
+  // Route through generic helper
+  return ingestDeviceEvent({
+    userId,
+    deviceInstallId,
+    moduleKey: 'connectivity',
+    permission,
+    payload: {
+      network_type: payload.network_type,
+      is_connected: payload.is_connected,
+      is_internet_reachable: payload.is_internet_reachable,
+      carrier: payload.carrier,
+      event_type: payload.event_type,
+      app_collected_at: payload.app_collected_at,
+      platform: payload.platform || Platform.OS,
+    },
   });
-
-  if (error) throw error;
 }
