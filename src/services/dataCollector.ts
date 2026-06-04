@@ -3,6 +3,7 @@
 import * as Device from 'expo-device';
 import * as Network from 'expo-network';
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { Dimensions, Platform } from 'react-native';
 
 export type LocationData = {
@@ -32,32 +33,30 @@ export type AppUsageData = {
 
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
-    let Location: any = null;
-
-    try {
-      const module = await import('expo-location');
-      Location = module?.default ?? module;
-    } catch (error) {
-      console.warn('collectLocationData import failed:', error);
-    }
-
-    if (!Location || typeof Location.requestForegroundPermissionsAsync !== 'function') {
-      console.warn('collectLocationData warning: expo-location unavailable.');
-      return null;
-    }
-
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return null;
 
     const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Location.Accuracy?.Balanced,
     });
-    const geocoded = await Location.reverseGeocodeAsync({
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    });
+    const latitude = position.coords?.latitude;
+    const longitude = position.coords?.longitude;
 
-    const place = geocoded[0] ?? {};
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return null;
+    }
+
+    let place: Location.LocationGeocodedAddress | Record<string, never> = {};
+    try {
+      const geocoded = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+      place = geocoded[0] ?? {};
+    } catch (error) {
+      console.warn('collectLocationData reverse geocode failed:', error);
+    }
+
     return {
       timestamp: new Date(position.timestamp ?? Date.now()).toISOString(),
       city: place.city ?? null,

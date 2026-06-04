@@ -7,6 +7,7 @@ import * as Device from 'expo-device';
 import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import { Dimensions, Platform } from 'react-native';
 import type {
   DeviceHealthEventPayload,
@@ -65,36 +66,29 @@ export async function collectDeviceHealthPayload(): Promise<DeviceHealthEventPay
  */
 export async function collectLocationCoarsePayload(): Promise<LocationCoarseEventPayload | null> {
   try {
-    let Location: any = null;
-
-    try {
-      const module = await import('expo-location');
-      Location = module?.default ?? module;
-    } catch (error) {
-      console.warn('collectLocationCoarsePayload: expo-location unavailable');
-      return null;
-    }
-
-    if (
-      !Location ||
-      typeof Location.requestForegroundPermissionsAsync !== 'function'
-    ) {
-      return null;
-    }
-
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return null;
 
     const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Location.Accuracy?.Balanced,
     });
+    const latitude = position.coords?.latitude;
+    const longitude = position.coords?.longitude;
 
-    const geocoded = await Location.reverseGeocodeAsync({
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    });
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return null;
+    }
 
-    const place = geocoded[0] ?? {};
+    let place: Location.LocationGeocodedAddress | Record<string, never> = {};
+    try {
+      const geocoded = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+      place = geocoded[0] ?? {};
+    } catch (error) {
+      console.warn('collectLocationCoarsePayload reverse geocode failed:', error);
+    }
 
     // Only include coarse location fields; exclude precise location
     return {
