@@ -2,6 +2,7 @@
 
 import * as Device from 'expo-device';
 import * as Network from 'expo-network';
+import Constants from 'expo-constants';
 import { Dimensions, Platform } from 'react-native';
 
 export type LocationData = {
@@ -30,6 +31,11 @@ export type AppUsageData = {
 };
 
 async function loadUsageStats(): Promise<any | null> {
+  if (Constants.appOwnership === 'expo') {
+    console.warn('loadUsageStats skipped: react-native-usage-stats is unavailable in Expo Go.');
+    return null;
+  }
+
   try {
     const module = await import('react-native-usage-stats');
     return module?.default ?? module;
