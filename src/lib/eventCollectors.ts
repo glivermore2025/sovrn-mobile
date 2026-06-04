@@ -118,9 +118,8 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
  */
 function postalBucketFromAccuracy(accuracy: number | null): string {
   if (accuracy === null || accuracy === undefined) return 'unknown';
-  if (accuracy < 100) return 'street_level';
-  if (accuracy < 500) return 'neighborhood';
-  if (accuracy < 2000) return 'city_area';
+  if (accuracy < 500) return 'city_area';
+  if (accuracy < 5000) return 'metro_area';
   return 'region';
 }
 

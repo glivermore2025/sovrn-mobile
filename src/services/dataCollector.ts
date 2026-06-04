@@ -5,17 +5,12 @@ import * as Network from 'expo-network';
 import { Dimensions, Platform } from 'react-native';
 
 export type LocationData = {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
   timestamp: string;
   city: string | null;
   region: string | null;
-  postalCode: string | null;
+  postalCodePrefix: string | null;
   country: string | null;
-  street: string | null;
-  name: string | null;
-  subregion: string | null;
+  accuracyBucket: string;
 };
 
 export type AppUsageEntry = {
@@ -73,22 +68,29 @@ export async function collectLocationData(): Promise<LocationData | null> {
 
     const place = geocoded[0] ?? {};
     return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy ?? null,
       timestamp: new Date(position.timestamp ?? Date.now()).toISOString(),
       city: place.city ?? null,
       region: place.region ?? null,
-      postalCode: place.postalCode ?? null,
+      postalCodePrefix: getPostalCodePrefix(place.postalCode),
       country: place.country ?? null,
-      street: place.street ?? null,
-      name: place.name ?? null,
-      subregion: place.subregion ?? null,
+      accuracyBucket: getCoarseAccuracyBucket(position.coords.accuracy ?? null),
     };
   } catch (error) {
     console.warn('collectLocationData error:', error);
     return null;
   }
+}
+
+function getPostalCodePrefix(postalCode?: string | null) {
+  if (!postalCode) return null;
+  return postalCode.replace(/\s+/g, '').slice(0, 3).toUpperCase();
+}
+
+function getCoarseAccuracyBucket(accuracy: number | null) {
+  if (accuracy === null) return 'unknown';
+  if (accuracy < 500) return 'city_area';
+  if (accuracy < 5000) return 'metro_area';
+  return 'region';
 }
 
 export async function collectAppUsageData(): Promise<AppUsageData | null> {
