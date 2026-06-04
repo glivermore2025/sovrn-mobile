@@ -6,6 +6,7 @@
 import * as Device from 'expo-device';
 import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
+import Constants from 'expo-constants';
 import { Dimensions, Platform } from 'react-native';
 import type {
   DeviceHealthEventPayload,
@@ -130,6 +131,11 @@ function postalBucketFromAccuracy(accuracy: number | null): string {
  */
 export async function collectActivityRhythmPayload(): Promise<ActivityRhythmEventPayload | null> {
   if (Platform.OS !== 'android') {
+    return null;
+  }
+
+  if (Constants.appOwnership === 'expo') {
+    console.warn('collectActivityRhythmPayload skipped: react-native-usage-stats is unavailable in Expo Go.');
     return null;
   }
 

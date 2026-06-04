@@ -276,7 +276,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (hasModuleEvents) {
         message = `Synced: ${successfulModules.join(', ')}`;
         setLastSyncedAt(new Date().toISOString());
-        const snap = await collectSnapshot();
+        const snap = await collectSnapshot(consent);
         setSnapshot(snap);
       } else {
         message =
