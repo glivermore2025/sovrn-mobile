@@ -80,11 +80,15 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
       typeof Location.requestForegroundPermissionsAsync !== 'function' ||
       typeof Location.getCurrentPositionAsync !== 'function'
     ) {
+      console.warn('collectLocationCoarsePayload unavailable: expo-location APIs missing.');
       return null;
     }
 
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') return null;
+    if (status !== 'granted') {
+      console.warn(`collectLocationCoarsePayload permission status: ${status}`);
+      return null;
+    }
 
     const balancedAccuracy = Location.Accuracy?.Balanced;
     const positionOptions =
@@ -94,6 +98,7 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
     const longitude = position.coords?.longitude;
 
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      console.warn('collectLocationCoarsePayload missing coordinates.');
       return null;
     }
 

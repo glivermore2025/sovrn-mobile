@@ -411,17 +411,38 @@ export async function syncAll(consent: ConsentPreferences): Promise<SyncResult> 
 
   // Collect location_coarse event
   if (permissions.location_coarse) {
+    result.events.location_coarse = false;
     try {
-      const payload = await collectLocationCoarsePayload();
-      if (payload) {
-        const success = await ingestDeviceEvent({
-          userId,
-          deviceInstallId,
-          moduleKey: 'location_coarse',
-          permission: permissions.location_coarse,
-          payload,
-        });
-        result.events.location_coarse = success;
+      if (!permissions.location_coarse.can_collect) {
+        console.log('[Location] Skipping location_coarse sync: Collect is disabled.');
+      } else {
+        const payload = await collectLocationCoarsePayload();
+        if (!payload) {
+          console.warn(
+            '[Location] No coarse location payload collected. Check device location permission and services.',
+          );
+        } else {
+          console.log('[Location] Ingesting coarse location event', {
+            city: payload.city,
+            region: payload.region,
+            country: payload.country,
+            accuracy_bucket: payload.accuracy_bucket,
+            can_sell_snapshot: permissions.location_coarse.can_sell,
+          });
+
+          const success = await ingestDeviceEvent({
+            userId,
+            deviceInstallId,
+            moduleKey: 'location_coarse',
+            permission: permissions.location_coarse,
+            payload,
+          });
+          result.events.location_coarse = success;
+
+          if (!success) {
+            console.warn('[Location] location_coarse event was not inserted.');
+          }
+        }
       }
     } catch (err) {
       console.warn('syncAll location_coarse collection failed:', err);

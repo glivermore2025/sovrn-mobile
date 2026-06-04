@@ -265,6 +265,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const successfulModules = Object.entries(result.events)
         .filter(([, success]) => success === true)
         .map(([module]) => module);
+      const failedModules = Object.entries(result.events)
+        .filter(([, success]) => success === false)
+        .map(([module]) => module);
 
       const hasModuleEvents = successfulModules.length > 0;
 
@@ -272,6 +275,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       let message = '';
       if (hasModuleEvents) {
         message = `Synced: ${successfulModules.join(', ')}`;
+        if (failedModules.length > 0) {
+          message += `. Not synced: ${failedModules.join(', ')}`;
+        }
         setLastSyncedAt(new Date().toISOString());
         const snap = await collectSnapshot(consent);
         setSnapshot(snap);
