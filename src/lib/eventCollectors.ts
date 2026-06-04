@@ -134,63 +134,11 @@ export async function collectActivityRhythmPayload(): Promise<ActivityRhythmEven
     return null;
   }
 
-  if (Constants.appOwnership === 'expo') {
-    console.warn('collectActivityRhythmPayload skipped: react-native-usage-stats is unavailable in Expo Go.');
-    return null;
-  }
+  if (Constants.appOwnership === 'expo') return null;
 
-  try {
-    let UsageStats: any = null;
-
-    try {
-      const module = await import('react-native-usage-stats');
-      UsageStats = module?.default ?? module;
-    } catch {
-      console.warn('collectActivityRhythmPayload: react-native-usage-stats unavailable');
-      return null;
-    }
-
-    if (!UsageStats || typeof UsageStats.getAppStats !== 'function') {
-      return null;
-    }
-
-    // Request permission if needed
-    const permissionGranted =
-      typeof UsageStats.getPermissionStatus === 'function'
-        ? await UsageStats.getPermissionStatus()
-        : false;
-
-    if (!permissionGranted && typeof UsageStats.requestPermission === 'function') {
-      await UsageStats.requestPermission();
-    }
-
-    const stats = await UsageStats.getAppStats();
-    const appsArray = Array.isArray(stats) ? stats : [];
-
-    // Calculate aggregates; do NOT store individual package names by default
-    let totalForegroundTime = 0;
-    for (const app of appsArray) {
-      totalForegroundTime += app.totalTimeInForeground ?? 0;
-    }
-
-    const now = new Date();
-    const dayStart = new Date(now);
-    dayStart.setHours(0, 0, 0, 0);
-
-    return {
-      apps_used_count: appsArray.length,
-      total_foreground_time: totalForegroundTime,
-      window_start: dayStart.toISOString(),
-      window_end: now.toISOString(),
-      permission_granted: permissionGranted,
-      platform: Platform.OS,
-      app_collected_at: now.toISOString(),
-      // TODO: Consider storing anonymized package category instead of raw package names
-    };
-  } catch (error) {
-    console.warn('collectActivityRhythmPayload error:', error);
-    return null;
-  }
+  // react-native-usage-stats is a custom native module and is not available in
+  // Expo Go. Keep this disabled until the app runs in a custom dev/store build.
+  return null;
 }
 
 /**

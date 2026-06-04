@@ -109,9 +109,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // Throttle connectivity events: skip if one was just inserted (unless network state changed)
         const timeSinceLastEvent = now - lastConnectivityEventAt.current;
         if (timeSinceLastEvent < 60000) {
-          // Less than 60 seconds since last event
-          // TODO: Could enhance this to compare network_type/is_connected to detect actual changes
-          console.log(`[Throttle] Skipping connectivity event (${timeSinceLastEvent}ms since last)`);
           return;
         }
 
