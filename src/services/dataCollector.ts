@@ -30,21 +30,6 @@ export type AppUsageData = {
   platform: string;
 };
 
-async function loadUsageStats(): Promise<any | null> {
-  if (Constants.appOwnership === 'expo') {
-    console.warn('loadUsageStats skipped: react-native-usage-stats is unavailable in Expo Go.');
-    return null;
-  }
-
-  try {
-    const module = await import('react-native-usage-stats');
-    return module?.default ?? module;
-  } catch (error) {
-    console.warn('loadUsageStats failed:', error);
-    return null;
-  }
-}
-
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
     let Location: any = null;
@@ -104,60 +89,11 @@ export async function collectAppUsageData(): Promise<AppUsageData | null> {
     return null;
   }
 
-  try {
-    const UsageStats = await loadUsageStats();
-    if (!UsageStats || typeof UsageStats.checkPermission !== 'function') {
-      return null;
-    }
+  if (Constants.appOwnership === 'expo') return null;
 
-    const permissionGranted = await UsageStats.checkPermission();
-    const windowEnd = Date.now();
-    const windowStart = windowEnd - 1000 * 60 * 60 * 24;
-
-    if (!permissionGranted) {
-      return {
-        appsUsedCount: 0,
-        apps: [],
-        windowStart: new Date(windowStart).toISOString(),
-        windowEnd: new Date(windowEnd).toISOString(),
-        permissionGranted: false,
-        platform: 'android',
-      };
-    }
-
-    const rawStats = await UsageStats.queryUsageStats(windowStart, windowEnd);
-    if (!rawStats || !Array.isArray(rawStats)) {
-      return {
-        appsUsedCount: 0,
-        apps: [],
-        windowStart: new Date(windowStart).toISOString(),
-        windowEnd: new Date(windowEnd).toISOString(),
-        permissionGranted: true,
-        platform: 'android',
-      };
-    }
-
-    const apps = rawStats
-      .map((item: any) => ({
-        packageName: item.packageName,
-        totalTimeInForeground: item.totalTimeInForeground ?? 0,
-        lastTimeUsed: item.lastTimeUsed ?? 0,
-        firstTimeStamp: item.firstTimeStamp ?? 0,
-      }))
-      .sort((a, b) => b.totalTimeInForeground - a.totalTimeInForeground);
-
-    return {
-      appsUsedCount: apps.length,
-      apps,
-      windowStart: new Date(windowStart).toISOString(),
-      windowEnd: new Date(windowEnd).toISOString(),
-      permissionGranted: true,
-      platform: 'android',
-    };
-  } catch (error) {
-    console.warn('collectAppUsageData error:', error);
-    return null;
-  }
+  // react-native-usage-stats is a custom native module and is not available in
+  // Expo Go. Keep this disabled until the app runs in a custom dev/store build.
+  return null;
 }
 
 export async function collectDeviceData() {
