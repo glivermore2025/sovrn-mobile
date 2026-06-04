@@ -3,7 +3,6 @@
 import * as Device from 'expo-device';
 import * as Network from 'expo-network';
 import Constants from 'expo-constants';
-import * as Location from 'expo-location';
 import { Dimensions, Platform } from 'react-native';
 
 export type LocationData = {
@@ -33,12 +32,31 @@ export type AppUsageData = {
 
 export async function collectLocationData(): Promise<LocationData | null> {
   try {
+    let Location: any = null;
+
+    try {
+      const module = await import('expo-location');
+      Location = module?.default ?? module;
+    } catch (error) {
+      console.warn('collectLocationData import failed:', error);
+      return null;
+    }
+
+    if (
+      !Location ||
+      typeof Location.requestForegroundPermissionsAsync !== 'function' ||
+      typeof Location.getCurrentPositionAsync !== 'function'
+    ) {
+      return null;
+    }
+
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return null;
 
-    const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy?.Balanced,
-    });
+    const balancedAccuracy = Location.Accuracy?.Balanced;
+    const positionOptions =
+      typeof balancedAccuracy === 'number' ? { accuracy: balancedAccuracy } : {};
+    const position = await Location.getCurrentPositionAsync(positionOptions);
     const latitude = position.coords?.latitude;
     const longitude = position.coords?.longitude;
 
@@ -46,15 +64,17 @@ export async function collectLocationData(): Promise<LocationData | null> {
       return null;
     }
 
-    let place: Location.LocationGeocodedAddress | Record<string, never> = {};
-    try {
-      const geocoded = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
-      place = geocoded[0] ?? {};
-    } catch (error) {
-      console.warn('collectLocationData reverse geocode failed:', error);
+    let place: Record<string, any> = {};
+    if (typeof Location.reverseGeocodeAsync === 'function') {
+      try {
+        const geocoded = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+        place = geocoded?.[0] ?? {};
+      } catch (error) {
+        console.warn('collectLocationData reverse geocode failed:', error);
+      }
     }
 
     return {
