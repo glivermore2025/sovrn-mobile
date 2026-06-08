@@ -11,7 +11,6 @@ import {
   collectDeviceHealthPayload,
   collectLocationCoarsePayload,
   collectActivityRhythmPayload,
-  createDemographicsPayload,
 } from '../lib/eventCollectors';
 import type { SyncResult } from '../types/dataModules';
 
@@ -470,50 +469,8 @@ export async function syncAll(consent: ConsentPreferences): Promise<SyncResult> 
     }
   }
 
-  // Note: Demographics is handled separately via saveDemographicsWithEvent()
-  // not as part of the general sync
+  // Note: demographics are stable profile attributes and are saved to
+  // user_demographics, not emitted as recurring device_events.
 
   return result;
-}
-
-/**
- * Save demographics to both legacy table and device_events (if permitted).
- * Call this when user saves demographics from settings.
- */
-export async function saveDemographicsWithEvent(
-  demographics: Demographics,
-): Promise<boolean> {
-  const userId = await getSessionUserId();
-  if (!userId) return false;
-
-  // Always save to legacy table for compatibility
-  const legacySaveSuccess = await saveDemographics(demographics);
-
-  // Also ingest as device_events if permitted
-  try {
-    const deviceInstallId = getDeviceInstallId();
-    const permissions = await getDeviceModulePermissions(userId, deviceInstallId);
-
-    if (permissions.demographics) {
-      const payload = createDemographicsPayload(
-        demographics.ageRange,
-        demographics.industry,
-        demographics.region,
-        demographics.householdSize,
-        demographics.devicesOwned,
-      );
-
-      await ingestDeviceEvent({
-        userId,
-        deviceInstallId,
-        moduleKey: 'demographics',
-        permission: permissions.demographics,
-        payload,
-      });
-    }
-  } catch (err) {
-    console.warn('saveDemographicsWithEvent device_events insert failed:', err);
-  }
-
-  return legacySaveSuccess;
 }

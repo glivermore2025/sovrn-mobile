@@ -14,7 +14,7 @@ import {
   registerDevice,
   uploadSnapshot,
   loadDemographics,
-  saveDemographicsWithEvent,
+  saveDemographics as saveDemographicsRemote,
   loadConsent,
   saveConsent as saveConsentRemote,
   syncAll,
@@ -238,7 +238,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const persistDemographics = useCallback(async (d: Demographics) => {
     setDemographicsState(d);
-    return saveDemographicsWithEvent(d);
+    return saveDemographicsRemote(d);
   }, []);
 
   const setConsent = useCallback((c: ConsentPreferences) => {
