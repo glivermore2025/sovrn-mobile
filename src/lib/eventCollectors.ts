@@ -15,6 +15,8 @@ import type {
   DemographicsEventPayload,
 } from '../types/dataModules';
 
+declare const require: (moduleName: string) => unknown;
+
 /**
  * Collect device health data.
  * Includes hardware/OS info, battery, screen dimensions.
@@ -69,10 +71,18 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
 
     try {
       const module = await import('expo-location');
-      Location = module?.default ?? module;
+      Location = resolveLocationModule(module);
     } catch (error) {
-      console.warn('collectLocationCoarsePayload import failed:', error);
-      return null;
+      console.warn('collectLocationCoarsePayload dynamic import failed:', error);
+    }
+
+    if (!Location) {
+      try {
+        Location = resolveLocationModule(require('expo-location'));
+      } catch (error) {
+        console.warn('collectLocationCoarsePayload require failed:', error);
+        return null;
+      }
     }
 
     if (
@@ -130,6 +140,20 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
     console.warn('collectLocationCoarsePayload error:', error);
     return null;
   }
+}
+
+function resolveLocationModule(module: any) {
+  if (hasLocationApis(module)) return module;
+  if (hasLocationApis(module?.default)) return module.default;
+  return null;
+}
+
+function hasLocationApis(module: any): boolean {
+  return (
+    !!module &&
+    typeof module.requestForegroundPermissionsAsync === 'function' &&
+    typeof module.getCurrentPositionAsync === 'function'
+  );
 }
 
 /**
