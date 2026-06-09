@@ -35,11 +35,14 @@ const tabStyles = StyleSheet.create({
 });
 
 function AppTabs() {
+  const { session } = useAuth();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
+          display: session ? 'flex' : 'none',
           backgroundColor: colors.bg,
           borderTopColor: colors.separator,
           borderTopWidth: StyleSheet.hairlineWidth,

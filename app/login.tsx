@@ -7,15 +7,36 @@ import { colors, spacing, radius, font } from '../src/theme';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleAuth = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed.includes('@')) return Alert.alert('Enter a valid email');
-    if (!password) return Alert.alert('Enter a password');
+    if (password.length < 6) return Alert.alert('Enter a password with at least 6 characters');
 
     setLoading(true);
+
+    if (mode === 'signUp') {
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmed,
+        password,
+        options: {
+          emailRedirectTo: 'https://getsovrn.com/supabase-redirect',
+        },
+      });
+
+      setLoading(false);
+
+      if (error) return Alert.alert('Account creation failed', error.message);
+      if (data.session) {
+        router.replace('/');
+      } else {
+        router.replace('/check-email');
+      }
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email: trimmed,
@@ -63,7 +84,7 @@ export default function Login() {
           />
 
           <Pressable
-            onPress={handleLogin}
+            onPress={handleAuth}
             disabled={loading}
             style={({ pressed }) => [
               s.button,
@@ -72,13 +93,31 @@ export default function Login() {
             ]}
           >
             <Text style={s.buttonText}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading
+                ? mode === 'signUp'
+                  ? 'Creating account...'
+                  : 'Signing in...'
+                : mode === 'signUp'
+                  ? 'Create Account'
+                  : 'Sign In'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+            disabled={loading}
+            style={({ pressed }) => [s.modeButton, pressed && { opacity: 0.8 }]}
+          >
+            <Text style={s.modeButtonText}>
+              {mode === 'signIn'
+                ? 'New to Sovrn? Create an account'
+                : 'Already have an account? Sign in'}
             </Text>
           </Pressable>
         </View>
 
         <Text style={s.footer}>
-          By signing in you agree to our{' '}
+          By continuing you agree to our{' '}
           <Text style={s.footerLink} onPress={() => Linking.openURL('https://getsovrn.com/terms')}>
             Terms of Service
           </Text>{' '}
@@ -125,6 +164,15 @@ const s = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: colors.bg, fontSize: font.md, fontWeight: '700' },
+  modeButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  modeButtonText: {
+    color: colors.accent,
+    fontSize: font.sm,
+    fontWeight: '600',
+  },
 
   footer: {
     color: colors.textMuted,
