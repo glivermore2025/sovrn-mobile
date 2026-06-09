@@ -10,6 +10,7 @@ const supabaseAnonKey =
   env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   env.EXPO_PUBLIC_SUPABASE_KEY ??
   Constants.expoConfig?.extra?.supabaseAnonKey ?? '';
+const SECURE_STORE_CHUNK_SIZE = 1800;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
@@ -17,15 +18,58 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+async function deleteChunkedItem(key: string) {
+  const chunkCount = Number(await SecureStore.getItemAsync(`${key}:chunks`));
+  if (Number.isFinite(chunkCount) && chunkCount > 0) {
+    await Promise.all(
+      Array.from({ length: chunkCount }, (_, index) =>
+        SecureStore.deleteItemAsync(`${key}:chunk:${index}`),
+      ),
+    );
+  }
+
+  await SecureStore.deleteItemAsync(`${key}:chunks`);
+  await SecureStore.deleteItemAsync(key);
+}
+
 const ExpoSecureStoreAdapter = {
   getItem: async (key: string) => {
-    return SecureStore.getItemAsync(key);
+    const chunkCount = Number(await SecureStore.getItemAsync(`${key}:chunks`));
+    if (!Number.isFinite(chunkCount) || chunkCount <= 0) {
+      return SecureStore.getItemAsync(key);
+    }
+
+    const chunks = await Promise.all(
+      Array.from({ length: chunkCount }, (_, index) =>
+        SecureStore.getItemAsync(`${key}:chunk:${index}`),
+      ),
+    );
+
+    if (chunks.some((chunk) => chunk == null)) {
+      await deleteChunkedItem(key);
+      return null;
+    }
+
+    return chunks.map((chunk) => chunk ?? '').join('');
   },
   setItem: async (key: string, value: string) => {
-    await SecureStore.setItemAsync(key, value);
+    await deleteChunkedItem(key);
+
+    if (value.length <= SECURE_STORE_CHUNK_SIZE) {
+      await SecureStore.setItemAsync(key, value);
+      return;
+    }
+
+    const chunks = value.match(new RegExp(`.{1,${SECURE_STORE_CHUNK_SIZE}}`, 'g')) ?? [];
+    await Promise.all(
+      chunks.map((chunk, index) =>
+        SecureStore.setItemAsync(`${key}:chunk:${index}`, chunk),
+      ),
+    );
+    await SecureStore.setItemAsync(`${key}:chunks`, String(chunks.length));
   },
   removeItem: async (key: string) => {
-    await SecureStore.deleteItemAsync(key);
+    await deleteChunkedItem(key);
   },
 };
 

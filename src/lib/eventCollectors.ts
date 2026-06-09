@@ -6,6 +6,7 @@
 import * as Device from 'expo-device';
 import * as Battery from 'expo-battery';
 import * as Network from 'expo-network';
+import * as Location from 'expo-location';
 import Constants from 'expo-constants';
 import { Dimensions, Platform } from 'react-native';
 import type {
@@ -14,8 +15,6 @@ import type {
   ActivityRhythmEventPayload,
   DemographicsEventPayload,
 } from '../types/dataModules';
-
-declare const require: (moduleName: string) => unknown;
 
 /**
  * Collect device health data.
@@ -67,26 +66,7 @@ export async function collectDeviceHealthPayload(): Promise<DeviceHealthEventPay
  */
 export async function collectLocationCoarsePayload(): Promise<LocationCoarseEventPayload | null> {
   try {
-    let Location: any = null;
-
-    try {
-      const module = await import('expo-location');
-      Location = resolveLocationModule(module);
-    } catch (error) {
-      console.warn('collectLocationCoarsePayload dynamic import failed:', error);
-    }
-
-    if (!Location) {
-      try {
-        Location = resolveLocationModule(require('expo-location'));
-      } catch (error) {
-        console.warn('collectLocationCoarsePayload require failed:', error);
-        return null;
-      }
-    }
-
     if (
-      !Location ||
       typeof Location.requestForegroundPermissionsAsync !== 'function' ||
       typeof Location.getCurrentPositionAsync !== 'function'
     ) {
@@ -100,10 +80,9 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
       return null;
     }
 
-    const balancedAccuracy = Location.Accuracy?.Balanced;
-    const positionOptions =
-      typeof balancedAccuracy === 'number' ? { accuracy: balancedAccuracy } : {};
-    const position = await Location.getCurrentPositionAsync(positionOptions);
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
     const latitude = position.coords?.latitude;
     const longitude = position.coords?.longitude;
 
@@ -140,20 +119,6 @@ export async function collectLocationCoarsePayload(): Promise<LocationCoarseEven
     console.warn('collectLocationCoarsePayload error:', error);
     return null;
   }
-}
-
-function resolveLocationModule(module: any) {
-  if (hasLocationApis(module)) return module;
-  if (hasLocationApis(module?.default)) return module.default;
-  return null;
-}
-
-function hasLocationApis(module: any): boolean {
-  return (
-    !!module &&
-    typeof module.requestForegroundPermissionsAsync === 'function' &&
-    typeof module.getCurrentPositionAsync === 'function'
-  );
 }
 
 /**
