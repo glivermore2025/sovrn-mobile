@@ -11,6 +11,8 @@ const supabaseAnonKey =
   env.EXPO_PUBLIC_SUPABASE_KEY ??
   Constants.expoConfig?.extra?.supabaseAnonKey ?? '';
 const SECURE_STORE_CHUNK_SIZE = 1800;
+const chunkCountKey = (key: string) => `${key}.chunks`;
+const chunkKey = (key: string, index: number) => `${key}.chunk.${index}`;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
@@ -19,29 +21,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 async function deleteChunkedItem(key: string) {
-  const chunkCount = Number(await SecureStore.getItemAsync(`${key}:chunks`));
+  const chunkCount = Number(await SecureStore.getItemAsync(chunkCountKey(key)));
   if (Number.isFinite(chunkCount) && chunkCount > 0) {
     await Promise.all(
       Array.from({ length: chunkCount }, (_, index) =>
-        SecureStore.deleteItemAsync(`${key}:chunk:${index}`),
+        SecureStore.deleteItemAsync(chunkKey(key, index)),
       ),
     );
   }
 
-  await SecureStore.deleteItemAsync(`${key}:chunks`);
+  await SecureStore.deleteItemAsync(chunkCountKey(key));
   await SecureStore.deleteItemAsync(key);
 }
 
 const ExpoSecureStoreAdapter = {
   getItem: async (key: string) => {
-    const chunkCount = Number(await SecureStore.getItemAsync(`${key}:chunks`));
+    const chunkCount = Number(await SecureStore.getItemAsync(chunkCountKey(key)));
     if (!Number.isFinite(chunkCount) || chunkCount <= 0) {
       return SecureStore.getItemAsync(key);
     }
 
     const chunks = await Promise.all(
       Array.from({ length: chunkCount }, (_, index) =>
-        SecureStore.getItemAsync(`${key}:chunk:${index}`),
+        SecureStore.getItemAsync(chunkKey(key, index)),
       ),
     );
 
@@ -63,10 +65,10 @@ const ExpoSecureStoreAdapter = {
     const chunks = value.match(new RegExp(`.{1,${SECURE_STORE_CHUNK_SIZE}}`, 'g')) ?? [];
     await Promise.all(
       chunks.map((chunk, index) =>
-        SecureStore.setItemAsync(`${key}:chunk:${index}`, chunk),
+        SecureStore.setItemAsync(chunkKey(key, index), chunk),
       ),
     );
-    await SecureStore.setItemAsync(`${key}:chunks`, String(chunks.length));
+    await SecureStore.setItemAsync(chunkCountKey(key), String(chunks.length));
   },
   removeItem: async (key: string) => {
     await deleteChunkedItem(key);
