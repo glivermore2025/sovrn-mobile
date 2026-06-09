@@ -1,9 +1,6 @@
 // app.config.js
-const { config } = require('dotenv');
-
-// Load .env.local first; fall back to .env if needed
-config({ path: '.env.local' });
-config();
+// Expo CLI loads .env files before evaluating this config. Reading process.env
+// here avoids double-loading dotenv and keeps `expo start` output clean.
 
 module.exports = {
   name: 'sovrn-mobile',
@@ -29,8 +26,7 @@ module.exports = {
 
   assetBundlePatterns: ['**/*'],
 
-  // Added on install: register native plugin for secure storage
-  plugins: ['expo-secure-store'],
+  plugins: ['expo-router', 'expo-secure-store'],
 
   extra: {
     // these must be strings; empty string is fine if missing
