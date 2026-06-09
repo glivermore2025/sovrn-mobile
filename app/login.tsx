@@ -7,9 +7,11 @@ import { colors, spacing, radius, font } from '../src/theme';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [codeSent, setCodeSent] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -48,6 +50,21 @@ export default function Login() {
 
     if (error) return Alert.alert('Code verification failed', error.message);
 
+    setCodeVerified(true);
+    setPassword('');
+    setConfirmPassword('');
+  };
+
+  const handleSetSignupPassword = async () => {
+    if (password.length < 6) return Alert.alert('Enter a password with at least 6 characters');
+    if (password !== confirmPassword) return Alert.alert('Passwords do not match');
+
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+
+    if (error) return Alert.alert('Could not save password', error.message);
+
     router.replace('/');
   };
 
@@ -72,6 +89,7 @@ export default function Login() {
 
   const handleAuth = () => {
     if (mode === 'signUp') {
+      if (codeVerified) return handleSetSignupPassword();
       return codeSent ? handleVerifySignupCode() : handleSendSignupCode();
     }
 
@@ -82,6 +100,9 @@ export default function Login() {
     setMode(mode === 'signIn' ? 'signUp' : 'signIn');
     setCode('');
     setCodeSent(false);
+    setCodeVerified(false);
+    setPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -101,6 +122,7 @@ export default function Login() {
             onChangeText={(value) => {
               setEmail(value);
               setCodeSent(false);
+              setCodeVerified(false);
               setCode('');
             }}
             placeholder="Email address"
@@ -121,6 +143,27 @@ export default function Login() {
               editable={!loading}
               style={s.input}
             />
+          ) : codeVerified ? (
+            <>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Create password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                editable={!loading}
+                style={s.input}
+              />
+              <TextInput
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm password"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                editable={!loading}
+                style={s.input}
+              />
+            </>
           ) : codeSent ? (
             <TextInput
               value={code}
@@ -150,19 +193,23 @@ export default function Login() {
             <Text style={s.buttonText}>
               {loading
                 ? mode === 'signUp'
-                  ? codeSent
+                  ? codeVerified
+                    ? 'Saving password...'
+                    : codeSent
                     ? 'Verifying code...'
                     : 'Sending code...'
                   : 'Signing in...'
                 : mode === 'signUp'
-                  ? codeSent
+                  ? codeVerified
+                    ? 'Save Password'
+                    : codeSent
                     ? 'Verify Code'
                     : 'Send Sign-Up Code'
                   : 'Sign In'}
             </Text>
           </Pressable>
 
-          {mode === 'signUp' && codeSent && (
+          {mode === 'signUp' && codeSent && !codeVerified && (
             <Pressable
               onPress={handleSendSignupCode}
               disabled={loading}
