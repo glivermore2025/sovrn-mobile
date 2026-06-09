@@ -7,36 +7,56 @@ import { colors, spacing, radius, font } from '../src/theme';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleAuth = async () => {
+  const trimmedEmail = email.trim().toLowerCase();
+
+  const handleSendSignupCode = async () => {
+    if (!trimmedEmail.includes('@')) return Alert.alert('Enter a valid email');
+
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: {
+        shouldCreateUser: true,
+      },
+    });
+    setLoading(false);
+
+    if (error) return Alert.alert('Could not send code', error.message);
+
+    setCodeSent(true);
+    Alert.alert('Code sent', 'Check your email for a one-time Sovrn sign-up code.');
+  };
+
+  const handleVerifySignupCode = async () => {
+    if (!trimmedEmail.includes('@')) return Alert.alert('Enter a valid email');
+    const token = code.trim();
+    if (token.length < 6) return Alert.alert('Enter the code from your email');
+
+    setLoading(true);
+    const { error } = await supabase.auth.verifyOtp({
+      email: trimmedEmail,
+      token,
+      type: 'email',
+    });
+    setLoading(false);
+
+    if (error) return Alert.alert('Code verification failed', error.message);
+
+    router.replace('/');
+  };
+
+  const handlePasswordLogin = async () => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed.includes('@')) return Alert.alert('Enter a valid email');
     if (password.length < 6) return Alert.alert('Enter a password with at least 6 characters');
 
     setLoading(true);
-
-    if (mode === 'signUp') {
-      const { data, error } = await supabase.auth.signUp({
-        email: trimmed,
-        password,
-        options: {
-          emailRedirectTo: 'https://getsovrn.com/supabase-redirect',
-        },
-      });
-
-      setLoading(false);
-
-      if (error) return Alert.alert('Account creation failed', error.message);
-      if (data.session) {
-        router.replace('/');
-      } else {
-        router.replace('/check-email');
-      }
-      return;
-    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email: trimmed,
@@ -48,6 +68,20 @@ export default function Login() {
     if (error) return Alert.alert('Login failed', error.message);
 
     router.replace('/');
+  };
+
+  const handleAuth = () => {
+    if (mode === 'signUp') {
+      return codeSent ? handleVerifySignupCode() : handleSendSignupCode();
+    }
+
+    return handlePasswordLogin();
+  };
+
+  const toggleMode = () => {
+    setMode(mode === 'signIn' ? 'signUp' : 'signIn');
+    setCode('');
+    setCodeSent(false);
   };
 
   return (
@@ -64,7 +98,11 @@ export default function Login() {
         <View style={s.form}>
           <TextInput
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(value) => {
+              setEmail(value);
+              setCodeSent(false);
+              setCode('');
+            }}
             placeholder="Email address"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
@@ -73,15 +111,32 @@ export default function Login() {
             style={s.input}
           />
 
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            editable={!loading}
-            style={s.input}
-          />
+          {mode === 'signIn' ? (
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              editable={!loading}
+              style={s.input}
+            />
+          ) : codeSent ? (
+            <TextInput
+              value={code}
+              onChangeText={setCode}
+              placeholder="Email code"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              autoCapitalize="none"
+              editable={!loading}
+              style={s.input}
+            />
+          ) : (
+            <Text style={s.helperText}>
+              We will send a one-time code to this email to create your account.
+            </Text>
+          )}
 
           <Pressable
             onPress={handleAuth}
@@ -95,16 +150,30 @@ export default function Login() {
             <Text style={s.buttonText}>
               {loading
                 ? mode === 'signUp'
-                  ? 'Creating account...'
+                  ? codeSent
+                    ? 'Verifying code...'
+                    : 'Sending code...'
                   : 'Signing in...'
                 : mode === 'signUp'
-                  ? 'Create Account'
+                  ? codeSent
+                    ? 'Verify Code'
+                    : 'Send Sign-Up Code'
                   : 'Sign In'}
             </Text>
           </Pressable>
 
+          {mode === 'signUp' && codeSent && (
+            <Pressable
+              onPress={handleSendSignupCode}
+              disabled={loading}
+              style={({ pressed }) => [s.modeButton, pressed && { opacity: 0.8 }]}
+            >
+              <Text style={s.modeButtonText}>Send a new code</Text>
+            </Pressable>
+          )}
+
           <Pressable
-            onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+            onPress={toggleMode}
             disabled={loading}
             style={({ pressed }) => [s.modeButton, pressed && { opacity: 0.8 }]}
           >
@@ -167,6 +236,12 @@ const s = StyleSheet.create({
   modeButton: {
     alignItems: 'center',
     paddingVertical: spacing.md,
+  },
+  helperText: {
+    color: colors.textSecondary,
+    fontSize: font.sm,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   modeButtonText: {
     color: colors.accent,

@@ -46,6 +46,9 @@ permissions unless a shipped user-facing feature requires them.
 
 - Confirm the built AAB targets the currently required Android API level.
 - Confirm release signing uses the upload key, not debug signing.
+- In Supabase Auth email templates, include the one-time code token
+  (`{{ .Token }}`) so app sign-up users receive a code instead of relying on a
+  magic link.
 - Test account deletion from the mobile Profile screen.
 - Test module permissions and Sync Now on a physical Android device.
 - Verify no precise location permission prompt appears.
