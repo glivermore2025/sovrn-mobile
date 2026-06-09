@@ -10,7 +10,8 @@
     "purchase-server": "node purchase-server/index.js",
     "typecheck": "tsc --noEmit",
     "test": "jest --watchAll=false",
-    "check": "npm run typecheck && npm run test"
+    "check:android-permissions": "node scripts/check-android-permissions.js",
+    "check": "npm run typecheck && npm run test && npm run check:android-permissions"
   },
   "jest": {
     "preset": "jest-expo",

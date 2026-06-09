@@ -39,8 +39,12 @@ module.exports = {
     // non-URL string (for example, 'expo'), it throws `TypeError: Invalid URL`
     // during `expo start`. Reintroduce `router` only with a full URL value.
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_KEY || '',
+    supabaseAnonKey:
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.EXPO_PUBLIC_SUPABASE_KEY ||
+      '',
     purchaseServerUrl: process.env.EXPO_PUBLIC_PURCHASE_SERVER_URL || '',
+    siteUrl: process.env.EXPO_PUBLIC_SITE_URL || 'https://getsovrn.com',
   },
 
   ios: {
@@ -51,6 +55,15 @@ module.exports = {
 
   android: {
     package: 'com.sovrn.mobile',
+    permissions: ['android.permission.INTERNET', 'android.permission.ACCESS_COARSE_LOCATION'],
+    blockedPermissions: [
+      'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.VIBRATE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+    ],
     adaptiveIcon: {
       foregroundImage: './assets/icon.png',
       backgroundColor: '#000000',

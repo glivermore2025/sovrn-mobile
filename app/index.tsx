@@ -25,7 +25,7 @@ export default function IndexScreen() {
       <Text style={s.logo}>sovrn</Text>
 
       <View style={s.heroCard}>
-        <Text style={s.heroLabel}>Lifetime Earnings</Text>
+        <Text style={s.heroLabel}>Estimated Value</Text>
         <Text style={s.heroAmount}>$0.00</Text>
         <Text style={s.heroPending}>$0.00 pending</Text>
       </View>
@@ -47,7 +47,7 @@ export default function IndexScreen() {
 
       {!contributing && (
         <TouchableOpacity style={s.ctaButton} onPress={() => router.push('/settings')}>
-          <Text style={s.ctaText}>Start Earning</Text>
+          <Text style={s.ctaText}>Review Sharing Controls</Text>
         </TouchableOpacity>
       )}
 
@@ -103,7 +103,7 @@ export default function IndexScreen() {
         </Text>
       )}
 
-      <Text style={s.tagline}>Your data, your earnings.</Text>
+      <Text style={s.tagline}>Your data, your controls.</Text>
     </ScrollView>
   );
 }

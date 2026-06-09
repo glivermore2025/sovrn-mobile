@@ -146,7 +146,7 @@ export default function BuyerPreviewScreen() {
     <ScrollView style={s.scroll} contentContainerStyle={s.container}>
       <Text style={s.logo}>Connectivity Dataset</Text>
       <Text style={s.description}>
-        Preview the sellable connectivity dataset before purchase. Filters only query the transformed daily dataset.
+        Preview the eligible aggregated connectivity dataset before purchase. Filters only query the transformed daily dataset.
       </Text>
       <View style={s.card}>
         <Text style={s.cardTitle}>Filters</Text>

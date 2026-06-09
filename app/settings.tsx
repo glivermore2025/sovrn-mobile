@@ -197,7 +197,7 @@ export default function SettingsScreen() {
       {tab === 'modules' ? (
         <>
           <Text style={s.subtitle}>
-            Choose which data modules Sovrn can collect and sell to marketplaces.
+            Choose which data modules Sovrn can collect and include in aggregated marketplace insights.
           </Text>
 
           <View style={s.card}>
@@ -234,10 +234,9 @@ export default function SettingsScreen() {
           <View style={s.infoCard}>
             <Text style={s.infoIcon}>ℹ️</Text>
             <Text style={s.infoText}>
-              • "Collect" enables Sovrn to gather this data from your device.
-              {'\n'}• "Sell" allows Sovrn to include it in anonymized marketplace
-              datasets.
-              {'\n'}• You cannot sell data without collecting it first.
+              - "Collect" enables Sovrn to gather this data from your device.
+              {'\n'}- "Share" allows Sovrn to include de-identified, aggregated outputs from this module in marketplace insights.
+              {'\n'}- You cannot share a module unless collection is enabled first.
             </Text>
           </View>
         </>
@@ -293,8 +292,8 @@ export default function SettingsScreen() {
           <View style={s.infoCard}>
             <Text style={s.infoIcon}>🔒</Text>
             <Text style={s.infoText}>
-              Your data is always anonymized before being included in pooled
-              datasets. We never sell individual records.
+              Your data is anonymized and aggregated before being included in
+              pooled datasets. We never provide buyers with individual records.
             </Text>
           </View>
         </>
@@ -367,7 +366,7 @@ function ModulePermissionRow({
         </View>
         <View style={s.moduleToggle}>
           <Text style={[s.toggleLabel, !canCollect && s.toggleLabelDisabled]}>
-            Sell
+            Share
           </Text>
           <Switch
             value={canSell && canCollect}

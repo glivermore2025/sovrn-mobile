@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, Alert, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, Alert, StyleSheet, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { supabase } from '../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { colors, spacing, radius, font } from '../src/theme';
@@ -37,7 +37,7 @@ export default function Login() {
       <View style={s.inner}>
         <View style={s.top}>
           <Text style={s.brand}>sovrn</Text>
-          <Text style={s.tagline}>Own your data. Get paid.</Text>
+          <Text style={s.tagline}>Control your data. Share on your terms.</Text>
         </View>
 
         <View style={s.form}>
@@ -78,7 +78,15 @@ export default function Login() {
         </View>
 
         <Text style={s.footer}>
-          By signing in you agree to our Terms of Service and Privacy Policy.
+          By signing in you agree to our{' '}
+          <Text style={s.footerLink} onPress={() => Linking.openURL('https://getsovrn.com/terms')}>
+            Terms of Service
+          </Text>{' '}
+          and{' '}
+          <Text style={s.footerLink} onPress={() => Linking.openURL('https://getsovrn.com/privacy')}>
+            Privacy Policy
+          </Text>
+          .
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -124,5 +132,9 @@ const s = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xxxl,
     lineHeight: 16,
+  },
+  footerLink: {
+    color: colors.accent,
+    fontWeight: '600',
   },
 });

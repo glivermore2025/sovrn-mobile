@@ -1,9 +1,10 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
 import { useAuth } from '../src/context/AuthContext';
 import { useDataContext } from '../src/context/DataContext';
 import { supabase } from '../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import Constants from 'expo-constants';
 import { colors, spacing, radius, font } from '../src/theme';
 
 export default function ProfileScreen() {
@@ -13,6 +14,7 @@ export default function ProfileScreen() {
 
   const [displayName, setDisplayName] = useState(session?.user?.user_metadata?.display_name ?? '');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const email = session?.user?.email ?? '';
   const initials = email.slice(0, 2).toUpperCase();
@@ -28,6 +30,56 @@ export default function ProfileScreen() {
     } else {
       Alert.alert('Saved', 'Profile updated.');
     }
+  }
+
+  async function handleDeleteAccount() {
+    if (!session?.access_token) {
+      Alert.alert('Error', 'You must be signed in to delete your account.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your Sovrn account, profile, permissions, and contributed data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const siteUrl =
+                Constants.expoConfig?.extra?.siteUrl ?? 'https://getsovrn.com';
+              const response = await fetch(`${siteUrl}/api/account-delete`, {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              const body = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                throw new Error(body.error ?? 'Account deletion failed.');
+              }
+
+              await supabase.auth.signOut();
+              Alert.alert('Account deleted', 'Your account and contributed data were deleted.');
+              router.replace('/login');
+            } catch (error) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : 'Could not delete your account. Please try again.';
+              Alert.alert('Error', message);
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -65,6 +117,18 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Support</Text>
+        <View style={s.card}>
+          <TouchableOpacity onPress={() => Linking.openURL('https://getsovrn.com/privacy')}>
+            <SettingsRow label="Privacy Policy" value="Open" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openURL('https://getsovrn.com/account-deletion')}>
+            <SettingsRow label="Account Deletion" value="Open" last />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <TouchableOpacity
         style={s.signOutBtn}
         onPress={async () => {
@@ -74,6 +138,23 @@ export default function ProfileScreen() {
       >
         <Text style={s.signOutText}>Sign Out</Text>
       </TouchableOpacity>
+
+      <View style={s.dangerSection}>
+        <Text style={s.sectionTitle}>Danger Zone</Text>
+        <Text style={s.deleteHelp}>
+          Delete your account and remove your profile, permissions, and contributed
+          data from Sovrn.
+        </Text>
+        <TouchableOpacity
+          style={[s.deleteBtn, deleting && { opacity: 0.4 }]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          <Text style={s.deleteText}>
+            {deleting ? 'Deleting...' : 'Delete Account'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -162,4 +243,25 @@ const s = StyleSheet.create({
     marginTop: spacing.lg,
   },
   signOutText: { color: colors.danger, fontSize: font.md, fontWeight: '600' },
+
+  dangerSection: {
+    marginTop: spacing.xxl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.separator,
+    paddingTop: spacing.xxl,
+  },
+  deleteHelp: {
+    color: colors.textSecondary,
+    fontSize: font.sm,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteText: { color: colors.danger, fontSize: font.md, fontWeight: '700' },
 });
