@@ -50,6 +50,19 @@ export type ConsentPreferences = {
   appUsage: boolean;
 };
 
+export type DeviceRegistrationStatus =
+  | 'registered'
+  | 'claim_required'
+  | 'claimed'
+  | 'failed';
+
+export type DeviceRegistrationResult = {
+  deviceId: string | null;
+  deviceInstallId: string;
+  status: DeviceRegistrationStatus;
+  message?: string;
+};
+
 export const EMPTY_DEMOGRAPHICS: Demographics = {
   ageRange: '',
   industry: '',
@@ -74,6 +87,15 @@ export async function getSessionUserId(): Promise<string | null> {
 export function getDeviceInstallId(): string {
   return (
     Constants.installationId ?? `${Platform.OS}-${Device.modelName ?? 'unknown'}`
+  );
+}
+
+function isDuplicateDeviceInstallIdError(error: { code?: string; message?: string }) {
+  const message = error.message ?? '';
+  return (
+    error.code === '23505' ||
+    message.includes('user_devices_device_install_id_key') ||
+    message.includes('duplicate key value')
   );
 }
 
@@ -139,13 +161,8 @@ export async function collectSnapshot(
   };
 }
 
-export async function registerDevice(): Promise<string | null> {
-  const userId = await getSessionUserId();
-  if (!userId) return null;
-
-  const installId = getDeviceInstallId();
-
-  const row = {
+function buildDeviceRegistrationRow(userId: string, installId: string) {
+  return {
     user_id: userId,
     device_install_id: installId,
     device_platform: Platform.OS,
@@ -158,6 +175,73 @@ export async function registerDevice(): Promise<string | null> {
     app_version: Constants.expoConfig?.version ?? '1.0.0',
     last_seen_at: new Date().toISOString(),
   };
+}
+
+async function claimDeviceForCurrentUser(
+  userId: string,
+  installId: string,
+): Promise<DeviceRegistrationResult> {
+  const row = buildDeviceRegistrationRow(userId, installId);
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    'claim_user_device',
+    {
+      p_app_version: row.app_version,
+      p_device_install_id: installId,
+      p_device_model: row.device_model,
+      p_device_name: row.device_name,
+      p_device_platform: row.device_platform,
+      p_os_name: row.os_name,
+      p_os_version: row.os_version,
+    },
+  );
+
+  if (!rpcError && rpcData) {
+    return {
+      deviceId: String(rpcData),
+      deviceInstallId: installId,
+      status: 'claimed',
+    };
+  }
+
+  if (rpcError) {
+    console.warn('claim_user_device rpc error:', rpcError.message);
+  }
+
+  const { data, error } = await supabase
+    .from('user_devices')
+    .upsert(row, { onConflict: 'device_install_id' })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.warn('claimDeviceForCurrentUser error:', error.message);
+    return {
+      deviceId: null,
+      deviceInstallId: installId,
+      status: 'failed',
+      message:
+        'This device is linked to another account and could not be claimed yet.',
+    };
+  }
+
+  return {
+    deviceId: data?.id ?? null,
+    deviceInstallId: installId,
+    status: 'claimed',
+  };
+}
+
+export async function registerDevice(options?: {
+  claimDevice?: boolean;
+}): Promise<DeviceRegistrationResult> {
+  const userId = await getSessionUserId();
+  const installId = getDeviceInstallId();
+  if (!userId) {
+    return { deviceId: null, deviceInstallId: installId, status: 'failed' };
+  }
+
+  const row = buildDeviceRegistrationRow(userId, installId);
 
   const { data, error } = await supabase
     .from('user_devices')
@@ -166,17 +250,52 @@ export async function registerDevice(): Promise<string | null> {
     .single();
 
   if (error) {
+    if (isDuplicateDeviceInstallIdError(error)) {
+      console.info(
+        'registerDevice claim required: device_install_id belongs to another account.',
+      );
+      if (options?.claimDevice) {
+        return claimDeviceForCurrentUser(userId, installId);
+      }
+
+      return {
+        deviceId: null,
+        deviceInstallId: installId,
+        status: 'claim_required',
+        message:
+          'This device is linked to another Sovrn account. Claim it before syncing new data.',
+      };
+    }
+
     console.warn('registerDevice error:', error.message);
-    const { data: existing } = await supabase
+    const { data: existingForUser } = await supabase
       .from('user_devices')
       .select('id')
       .eq('user_id', userId)
       .eq('device_install_id', installId)
       .single();
-    return existing?.id ?? null;
+
+    if (existingForUser?.id) {
+      return {
+        deviceId: existingForUser.id,
+        deviceInstallId: installId,
+        status: 'registered',
+      };
+    }
+
+    return {
+      deviceId: null,
+      deviceInstallId: installId,
+      status: 'failed',
+      message: error.message,
+    };
   }
 
-  return data?.id ?? null;
+  return {
+    deviceId: data?.id ?? null,
+    deviceInstallId: installId,
+    status: 'registered',
+  };
 }
 
 export async function uploadSnapshot(
@@ -348,9 +467,21 @@ export async function syncAll(consent: ConsentPreferences): Promise<SyncResult> 
     return { deviceRegistered: false, events: {} };
   }
 
-  const deviceId = await registerDevice();
-  if (!deviceId) {
-    return { deviceRegistered: false, events: {} };
+  const registration = await registerDevice();
+  if (registration.status === 'claim_required') {
+    return {
+      deviceRegistered: false,
+      deviceClaimRequired: true,
+      events: {},
+    };
+  }
+
+  if (!registration.deviceId) {
+    return {
+      deviceRegistered: false,
+      deviceClaimed: registration.status === 'claimed',
+      events: {},
+    };
   }
 
   const deviceInstallId = getDeviceInstallId();
@@ -358,6 +489,7 @@ export async function syncAll(consent: ConsentPreferences): Promise<SyncResult> 
 
   const result: SyncResult = {
     deviceRegistered: true,
+    deviceClaimed: registration.status === 'claimed',
     events: {},
   };
 

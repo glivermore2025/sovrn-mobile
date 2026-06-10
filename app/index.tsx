@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, Text, View, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useDataContext } from '../src/context/DataContext';
@@ -8,7 +8,18 @@ import { colors, spacing, radius, font } from '../src/theme';
 
 export default function IndexScreen() {
   const router = useRouter();
-  const { snapshot, contributing, syncing, lastSyncedAt, refreshSnapshot, syncNow } =
+  const {
+    snapshot,
+    contributing,
+    syncing,
+    lastSyncedAt,
+    lastSyncFeedback,
+    deviceId,
+    deviceClaimRequired,
+    refreshSnapshot,
+    syncNow,
+    claimCurrentDevice,
+  } =
     useDataContext();
   const { session, initializing } = useAuth();
 
@@ -38,9 +49,22 @@ export default function IndexScreen() {
           </Text>
         </View>
         <View style={s.statusItem}>
-          <View style={[s.dot, snapshot ? s.dotActive : s.dotInactive]} />
+          <View
+            style={[
+              s.dot,
+              deviceClaimRequired
+                ? s.dotWarning
+                : deviceId
+                  ? s.dotActive
+                  : s.dotInactive,
+            ]}
+          />
           <Text style={s.statusText}>
-            {snapshot ? 'Device Linked' : 'No Device'}
+            {deviceClaimRequired
+              ? 'Claim Required'
+              : deviceId
+                ? 'Device Linked'
+                : 'No Device'}
           </Text>
         </View>
       </View>
@@ -49,6 +73,41 @@ export default function IndexScreen() {
         <TouchableOpacity style={s.ctaButton} onPress={() => router.push('/settings')}>
           <Text style={s.ctaText}>Review Sharing Controls</Text>
         </TouchableOpacity>
+      )}
+
+      {deviceClaimRequired && (
+        <View style={s.claimCard}>
+          <Text style={s.claimTitle}>Device claim required</Text>
+          <Text style={s.claimText}>
+            This device was previously linked to another Sovrn account. Claim it
+            for this account before syncing new device data.
+          </Text>
+          <Text style={s.claimFinePrint}>
+            Past data stays with the account that collected it. Future data from
+            this device will count for this account after you claim it.
+          </Text>
+          <TouchableOpacity
+            style={s.claimButton}
+            activeOpacity={0.7}
+            onPress={() => {
+              Alert.alert(
+                'Claim this device?',
+                'Future data from this device will count for this account. Past data will stay with the account that collected it.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Claim Device',
+                    onPress: () => {
+                      void claimCurrentDevice();
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Text style={s.claimButtonText}>Claim Device</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       <View style={s.section}>
@@ -101,6 +160,10 @@ export default function IndexScreen() {
         <Text style={s.syncNote}>
           Last synced {new Date(lastSyncedAt).toLocaleString()}
         </Text>
+      )}
+
+      {lastSyncFeedback && (
+        <Text style={s.syncNote}>{lastSyncFeedback.message}</Text>
       )}
 
       <Text style={s.tagline}>Your data, your controls.</Text>
@@ -168,6 +231,7 @@ const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   dotActive: { backgroundColor: colors.accent },
   dotInactive: { backgroundColor: colors.textMuted },
+  dotWarning: { backgroundColor: colors.warning },
   statusText: { color: colors.textSecondary, fontSize: font.sm },
 
   ctaButton: {
@@ -207,6 +271,25 @@ const s = StyleSheet.create({
   infoLabel: { color: colors.textSecondary, fontSize: font.md },
   infoValue: { color: colors.white, fontSize: font.md, fontWeight: '500' },
   emptyText: { color: colors.textTertiary, fontSize: font.md, textAlign: 'center', padding: spacing.lg },
+
+  claimCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.warning,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.xl,
+    padding: spacing.lg,
+  },
+  claimTitle: { color: colors.white, fontSize: font.lg, fontWeight: '700', marginBottom: spacing.sm },
+  claimText: { color: colors.textSecondary, fontSize: font.md, lineHeight: 21, marginBottom: spacing.sm },
+  claimFinePrint: { color: colors.textTertiary, fontSize: font.sm, lineHeight: 19, marginBottom: spacing.md },
+  claimButton: {
+    backgroundColor: colors.warning,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  claimButtonText: { color: colors.bg, fontSize: font.md, fontWeight: '700' },
 
   syncButton: {
     backgroundColor: colors.surface,

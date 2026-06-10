@@ -36,6 +36,12 @@ type SyncFeedback = {
   timestamp: string;
   modules: Record<string, boolean>; // module key -> success
   message: string;
+  deviceClaimRequired?: boolean;
+};
+
+type DeviceClaimState = {
+  deviceInstallId: string;
+  message: string;
 };
 
 type DataContextValue = {
@@ -47,6 +53,7 @@ type DataContextValue = {
   lastSyncedAt: string | null;
   lastSyncFeedback: SyncFeedback | null;
   deviceId: string | null;
+  deviceClaimRequired: DeviceClaimState | null;
 
   refreshSnapshot: () => Promise<void>;
   setDemographics: (d: Demographics) => void;
@@ -54,6 +61,7 @@ type DataContextValue = {
   setConsent: (c: ConsentPreferences) => void;
   persistConsent: (c: ConsentPreferences) => Promise<boolean>;
   syncNow: () => Promise<boolean>;
+  claimCurrentDevice: () => Promise<boolean>;
   refreshModulePermissions: (userId: string) => Promise<Record<string, ModulePermission>>;
 };
 
@@ -67,9 +75,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [lastSyncFeedback, setLastSyncFeedback] = useState<SyncFeedback | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [deviceClaimRequired, setDeviceClaimRequired] = useState<DeviceClaimState | null>(null);
   const [modulePermissions, setModulePermissions] = useState<Record<string, ModulePermission>>({});
   const appState = useRef(AppState.currentState);
   const lastConnectivityEventAt = useRef<number>(0); // milliseconds for throttling
+  const deviceClaimRequiredRef = useRef<DeviceClaimState | null>(null);
   const deviceInstallId = getDeviceInstallId();
 
   // Derive contributing from module permissions (new model)
@@ -93,6 +103,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     },
     [deviceInstallId],
   );
+
+  useEffect(() => {
+    deviceClaimRequiredRef.current = deviceClaimRequired;
+  }, [deviceClaimRequired]);
 
   const collectConnectivitySnapshot = useCallback(
     async (
@@ -160,6 +174,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         perms = await refreshModulePermissions(userId);
       }
 
+      if (deviceClaimRequiredRef.current) return;
+
       await collectConnectivitySnapshot(
         userId,
         perms['connectivity'] ?? null,
@@ -168,6 +184,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     (async () => {
+      let canSyncDevice = true;
+
       try {
         const snap = await collectSnapshot(consent);
         setSnapshot(snap);
@@ -186,13 +204,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       } catch {}
 
       try {
-        const id = await registerDevice();
-        if (id) setDeviceId(id);
-      } catch {}
+        const registration = await registerDevice();
+        if (registration.status === 'claim_required') {
+          canSyncDevice = false;
+          setDeviceClaimRequired({
+            deviceInstallId: registration.deviceInstallId,
+            message:
+              registration.message ??
+              'This device is linked to another Sovrn account. Claim it before syncing new data.',
+          });
+        } else if (registration.deviceId) {
+          setDeviceId(registration.deviceId);
+          setDeviceClaimRequired(null);
+        }
+      } catch {
+        canSyncDevice = false;
+      }
 
       try {
         const userId = await getSessionUserId();
-        if (userId) {
+        if (userId && canSyncDevice) {
           const permissions = await refreshModulePermissions(userId);
           await collectConnectivitySnapshot(
             userId,
@@ -258,8 +289,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Log sync result for debugging
       console.log('[Sync] Result:', {
         deviceRegistered: result.deviceRegistered,
+        deviceClaimRequired: result.deviceClaimRequired,
         modules: result.events,
       });
+
+      if (result.deviceClaimRequired) {
+        const message =
+          'This device is linked to another Sovrn account. Claim this device before syncing new data.';
+        setDeviceClaimRequired({
+          deviceInstallId,
+          message,
+        });
+        setLastSyncFeedback({
+          timestamp: new Date().toISOString(),
+          modules: result.events,
+          message,
+          deviceClaimRequired: true,
+        });
+        return false;
+      }
 
       // Check which modules inserted successfully
       const successfulModules = Object.entries(result.events)
@@ -300,7 +348,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } finally {
       setSyncing(false);
     }
-  }, [consent]);
+  }, [consent, deviceInstallId]);
+
+  const claimCurrentDevice = useCallback(async () => {
+    const registration = await registerDevice({ claimDevice: true });
+    if (!registration.deviceId) {
+      setLastSyncFeedback({
+        timestamp: new Date().toISOString(),
+        modules: {},
+        message:
+          registration.message ??
+          'Could not claim this device. Please try again or contact support.',
+        deviceClaimRequired: true,
+      });
+      return false;
+    }
+
+    setDeviceId(registration.deviceId);
+    setDeviceClaimRequired(null);
+
+    const userId = await getSessionUserId();
+    if (userId) {
+      await refreshModulePermissions(userId);
+    }
+
+    setLastSyncFeedback({
+      timestamp: new Date().toISOString(),
+      modules: {},
+      message:
+        'Device claimed for this account. Future data from this device will count for this account.',
+    });
+
+    return true;
+  }, [refreshModulePermissions]);
 
   const value: DataContextValue = {
     snapshot,
@@ -311,12 +391,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     lastSyncedAt,
     lastSyncFeedback,
     deviceId,
+    deviceClaimRequired,
     refreshSnapshot,
     setDemographics,
     persistDemographics,
     setConsent,
     persistConsent,
     syncNow,
+    claimCurrentDevice,
     refreshModulePermissions,
   };
 

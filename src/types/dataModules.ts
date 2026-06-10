@@ -23,6 +23,8 @@ export type DeviceEventPayload = Record<string, unknown>;
 /** Result of a sync operation across all modules */
 export type SyncResult = {
   deviceRegistered: boolean;
+  deviceClaimRequired?: boolean;
+  deviceClaimed?: boolean;
   events: {
     connectivity?: boolean;
     device_health?: boolean;
