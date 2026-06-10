@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { useRouter } from 'expo-router';
 import { useAuth } from '../src/context/AuthContext';
 import { supabase } from '../src/lib/supabase';
 import { createCheckoutSession, BuyerFilterPayload } from '../src/lib/purchaseFlow';
@@ -22,7 +21,6 @@ const carrierOptions = ['Verizon', 'AT&T', 'T-Mobile'];
 const today = new Date().toISOString().slice(0, 10);
 
 export default function BuyerPreviewScreen() {
-  const router = useRouter();
   const { session, initializing } = useAuth();
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
@@ -39,12 +37,6 @@ export default function BuyerPreviewScreen() {
   const [uptimeMax, setUptimeMax] = useState('100');
   const [disconnectMin, setDisconnectMin] = useState('0');
   const [disconnectMax, setDisconnectMax] = useState('20');
-
-  useEffect(() => {
-    if (!initializing && !session) {
-      router.replace('/login');
-    }
-  }, [initializing, router, session]);
 
   const filters = useMemo(
     () => ({

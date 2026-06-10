@@ -23,12 +23,6 @@ export default function IndexScreen() {
     useDataContext();
   const { session, initializing } = useAuth();
 
-  React.useEffect(() => {
-    if (!initializing && !session) {
-      router.replace('/login');
-    }
-  }, [initializing, session, router]);
-
   if (initializing || !session) return null;
 
   return (

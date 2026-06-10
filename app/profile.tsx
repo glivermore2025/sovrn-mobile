@@ -2,7 +2,6 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert,
 import { useAuth } from '../src/context/AuthContext';
 import { useDataContext } from '../src/context/DataContext';
 import { supabase } from '../src/lib/supabase';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import Constants from 'expo-constants';
 import { colors, spacing, radius, font } from '../src/theme';
@@ -10,7 +9,6 @@ import { colors, spacing, radius, font } from '../src/theme';
 export default function ProfileScreen() {
   const { session } = useAuth();
   const { demographics, persistDemographics } = useDataContext();
-  const router = useRouter();
 
   const [displayName, setDisplayName] = useState(session?.user?.user_metadata?.display_name ?? '');
   const [saving, setSaving] = useState(false);
@@ -66,7 +64,6 @@ export default function ProfileScreen() {
 
               await supabase.auth.signOut();
               Alert.alert('Account deleted', 'Your account and contributed data were deleted.');
-              router.replace('/login');
             } catch (error) {
               const message =
                 error instanceof Error
@@ -133,7 +130,6 @@ export default function ProfileScreen() {
         style={s.signOutBtn}
         onPress={async () => {
           await supabase.auth.signOut();
-          router.replace('/login');
         }}
       >
         <Text style={s.signOutText}>Sign Out</Text>

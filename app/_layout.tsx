@@ -9,6 +9,7 @@ import { DataProvider } from '../src/context/DataContext';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { supabase } from '../src/lib/supabase';
 import { colors } from '../src/theme';
+import Login from './login';
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   // Unicode icons for demonstration; replace with vector icons if desired
@@ -35,14 +36,17 @@ const tabStyles = StyleSheet.create({
 });
 
 function AppTabs() {
-  const { session } = useAuth();
+  const { session, initializing } = useAuth();
+
+  if (initializing) return null;
+  if (!session) return <Login />;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          display: session ? 'flex' : 'none',
+          display: 'flex',
           backgroundColor: colors.bg,
           borderTopColor: colors.separator,
           borderTopWidth: StyleSheet.hairlineWidth,

@@ -1,12 +1,10 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { supabase } from '../src/lib/supabase';
 import { useAuth } from '../src/context/AuthContext';
-import { useRouter } from 'expo-router';
 import { colors, spacing, radius, font } from '../src/theme';
 
 export default function Account() {
   const { session, initializing } = useAuth();
-  const router = useRouter();
 
   if (initializing) {
     return (
@@ -17,7 +15,6 @@ export default function Account() {
   }
 
   if (!session) {
-    router.replace('/login');
     return null;
   }
 
@@ -42,7 +39,6 @@ export default function Account() {
       <Pressable
         onPress={async () => {
           await supabase.auth.signOut();
-          router.replace('/login');
         }}
         style={({ pressed }) => [s.signOutBtn, pressed && { opacity: 0.8 }]}
       >
