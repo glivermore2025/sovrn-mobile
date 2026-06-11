@@ -24,6 +24,18 @@ Build the Play upload artifact:
 npm run build:android:release
 ```
 
+If Codespaces reports `Unsupported class file major version 69`, Gradle is
+running under Java 25. Install/switch to JDK 17 before rerunning:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y openjdk-17-jdk
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+npm run build:android:release
+```
+
 Upload `android\app\build\outputs\bundle\release\app-release.aab` to Play
 Console.
 
