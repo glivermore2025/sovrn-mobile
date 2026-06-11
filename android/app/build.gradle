@@ -8,6 +8,23 @@ def releaseStorePassword = System.getenv("SOVRN_UPLOAD_STORE_PASSWORD")
 def releaseKeyAlias = System.getenv("SOVRN_UPLOAD_KEY_ALIAS")
 def releaseKeyPassword = System.getenv("SOVRN_UPLOAD_KEY_PASSWORD")
 def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+def releaseStoreFilePath = releaseStoreFile
+    ? (new File(releaseStoreFile).isAbsolute() ? releaseStoreFile : new File(projectRoot, releaseStoreFile).getPath())
+    : null
+
+gradle.taskGraph.whenReady { taskGraph ->
+    def requiresReleaseSigning = taskGraph.allTasks.any { task ->
+        task.name in ["bundleRelease", "assembleRelease"]
+    }
+
+    if (requiresReleaseSigning && !hasReleaseSigning) {
+        throw new GradleException(
+            "Android release signing is not configured. Set SOVRN_UPLOAD_STORE_FILE, " +
+            "SOVRN_UPLOAD_STORE_PASSWORD, SOVRN_UPLOAD_KEY_ALIAS, and SOVRN_UPLOAD_KEY_PASSWORD " +
+            "before building a release AAB/APK."
+        )
+    }
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -30,7 +47,7 @@ react {
     // root = file("../../")
     //   The folder where the react-native NPM package is. Default is ../../node_modules/react-native
     // reactNativeDir = file("../../node_modules/react-native")
-    //   The folder where the react-native Codegen package is. Default is ../../node_modules/@react-native/codegen
+    //   The folder where the React Native Codegen package is. Default is ../../node_modules/@react-native/codegen
     // codegenDir = file("../../node_modules/@react-native/codegen")
 
     /* Variants */
@@ -109,7 +126,7 @@ android {
         }
         release {
             if (hasReleaseSigning) {
-                storeFile file(releaseStoreFile)
+                storeFile file(releaseStoreFilePath)
                 storePassword releaseStorePassword
                 keyAlias releaseKeyAlias
                 keyPassword releaseKeyPassword

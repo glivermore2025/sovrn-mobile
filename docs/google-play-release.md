@@ -12,16 +12,23 @@ $env:SOVRN_UPLOAD_KEY_ALIAS='sovrn-upload'
 $env:SOVRN_UPLOAD_KEY_PASSWORD='...'
 ```
 
+`SOVRN_UPLOAD_STORE_FILE` may be an absolute path or a path relative to the
+repo root.
+
+For local builds, the release scripts also load these values from the ignored
+`.env.release-signing.local` file when it exists.
+
 Build the Play upload artifact:
 
 ```powershell
-npm run check:android-permissions
-cd android
-.\gradlew.bat bundleRelease
+npm run build:android:release
 ```
 
 Upload `android\app\build\outputs\bundle\release\app-release.aab` to Play
 Console.
+
+The release build now fails before Gradle packaging if any signing environment
+variable is missing or if the configured store file is `android/app/debug.keystore`.
 
 ## Permission Intent
 

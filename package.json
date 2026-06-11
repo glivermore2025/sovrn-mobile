@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --watchAll=false",
     "check:android-permissions": "node scripts/check-android-permissions.js",
+    "check:android-release-signing": "node scripts/check-android-release-signing.js",
+    "build:android:release": "npm run check && npm run check:android-release-signing && node scripts/build-android-release.js",
     "check": "npm run typecheck && npm run test && npm run check:android-permissions"
   },
   "jest": {
