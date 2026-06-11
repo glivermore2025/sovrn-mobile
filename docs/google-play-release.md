@@ -36,6 +36,32 @@ java -version
 npm run build:android:release
 ```
 
+If Codespaces reports `SDK location not found`, install the Android SDK pieces
+that match the Expo/Gradle config and point Gradle at them:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y unzip openjdk-17-jdk
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_HOME="$HOME/android-sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+mkdir -p "$ANDROID_HOME/cmdline-tools"
+curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/android-commandlinetools.zip
+rm -rf /tmp/android-commandlinetools
+unzip -q /tmp/android-commandlinetools.zip -d /tmp/android-commandlinetools
+rm -rf "$ANDROID_HOME/cmdline-tools/latest"
+mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
+mv /tmp/android-commandlinetools/cmdline-tools/* "$ANDROID_HOME/cmdline-tools/latest/"
+
+yes | sdkmanager --licenses
+sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.1.12297006"
+printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
+
+npm run build:android:release
+```
+
 Upload `android\app\build\outputs\bundle\release\app-release.aab` to Play
 Console.
 
