@@ -16,7 +16,9 @@ $env:SOVRN_UPLOAD_KEY_PASSWORD='...'
 repo root.
 
 For local builds, the release scripts also load these values from the ignored
-`.env.release-signing.local` file when it exists.
+`release-signing.local` file when it exists. Do not use a `.env.*` filename for
+release signing secrets because Expo automatically loads `.env*` files during
+`expo start` and may try to parse or expose signing-only values in development.
 
 Build the Play upload artifact:
 
