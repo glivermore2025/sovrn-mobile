@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const releaseEnvPath = path.join(__dirname, '..', '.env.release-signing.local');
+const releaseEnvPath = path.join(__dirname, '..', 'release-signing.local');
 
 function loadAndroidReleaseEnv() {
   if (!fs.existsSync(releaseEnvPath)) return;
